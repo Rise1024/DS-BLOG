@@ -45,6 +45,16 @@ class Config:
             "name": "github_monthly",
             "description": "GitHub每月热门",
         },
+        {
+            "url": "https://36kr.com/feed",
+            "name": "36kr",
+            "description": "36氪",
+        },
+        {
+            "url": "https://www.appinn.com/feed/",
+            "name": "xiaozhong",
+            "description": "小众软件",
+        },
     ]
 
     # 服务器配置
