@@ -1,0 +1,9 @@
+<view class="custom-toast {{show ? 'show' : ''}}" animation="{{animationData}}">
+  <view class="toast-content">
+    <view class="toast-icon" wx:if="{{icon !== 'none'}}">
+      <image wx:if="{{icon === 'success'}}" src="/images/success.png" mode="aspectFit" />
+      <image wx:if="{{icon === 'error'}}" src="/images/error.png" mode="aspectFit" />
+    </view>
+    <text class="toast-text">{{title}}</text>
+  </view>
+</view>

@@ -1,0 +1,84 @@
+<view class="article-container">
+  <!-- 加载状态 -->
+  <view wx:if="{{isLoading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 错误状态 -->
+  <view wx:elif="{{error}}" class="error-container">
+    <text class="error-icon">⚠️</text>
+    <text class="error-text">{{error}}</text>
+    <button class="retry-btn" bindtap="loadArticle">重试</button>
+  </view>
+
+  <!-- 文章内容 -->
+  <view wx:else class="article-content">
+    <!-- 文章头部 -->
+    <view class="article-header">
+      <text class="article-title">{{article.title}}</text>
+      
+      <view class="article-meta">
+        <text class="article-date">{{article.createdAt}}</text>
+        <text class="article-category">{{article.category}}</text>
+      </view>
+      
+      <view wx:if="{{article.tags && article.tags.length}}" class="article-tags">
+        <text 
+          wx:for="{{article.tags}}" 
+          wx:key="*this"
+          class="article-tag"
+        >
+          {{item}}
+        </text>
+      </view>
+    </view>
+
+    <!-- 文章正文 -->
+    <view class="article-body">
+      <towxml wx:if="{{articleContent}}" nodes="{{articleContent}}" />
+      <view wx:else class="no-content">
+        <text>内容加载中...</text>
+      </view>
+    </view>
+
+    <!-- 文章底部 -->
+    <view class="article-footer">
+      <button class="back-btn" bindtap="goBack">
+        <text class="back-icon">←</text>
+        <text>返回列表</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 大纲按钮 -->
+  <view wx:if="{{article.headings && article.headings.length > 0}}" class="outline-btn" bindtap="toggleOutline">
+    <text class="outline-icon">📋</text>
+    <text class="outline-text">大纲</text>
+  </view>
+
+  <!-- 大纲抽屉 -->
+  <view wx:if="{{showOutline}}" class="outline-overlay" bindtap="closeOutline">
+    <view class="outline-drawer" catchtap="">
+      <!-- 抽屉头部 -->
+      <view class="outline-header">
+        <text class="outline-title">文章大纲</text>
+        <text class="outline-close" bindtap="closeOutline">✕</text>
+      </view>
+      
+      <!-- 大纲列表 -->
+      <scroll-view class="outline-content" scroll-y="true">
+        <view 
+          wx:for="{{article.headings}}" 
+          wx:key="anchor"
+          class="outline-item level-{{item.level}} {{currentHeading === item.anchor ? 'active' : ''}}"
+          data-anchor="{{item.anchor}}"
+          data-title="{{item.title}}"
+          bindtap="scrollToHeading"
+        >
+          <text class="outline-item-text">{{item.title}}</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

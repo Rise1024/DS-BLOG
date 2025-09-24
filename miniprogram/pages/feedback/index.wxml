@@ -1,0 +1,30 @@
+<view class="container">
+  <view class="feedback-card">
+    <view class="feedback-header">
+      <text class="feedback-title">意见反馈</text>
+      <text class="feedback-desc">您的建议是我们进步的动力</text>
+    </view>
+
+    <view class="feedback-form">
+      <view class="form-group">
+        <textarea
+          class="feedback-content"
+          placeholder="请输入您的意见或建议"
+          value="{{content}}"
+          bindinput="handleContentInput"
+          maxlength="500"
+        ></textarea>
+        <view class="word-limit">{{content.length}}/500</view>
+      </view>
+
+      <button 
+        class="submit-btn" 
+        bindtap="submitFeedback"
+        loading="{{submitting}}"
+        disabled="{{submitting}}"
+      >提交反馈</button>
+    </view>
+  </view>
+  <login-modal show="{{showLoginModal}}" bindclose="onLoginModalClose" bindlogin="onLogin" />
+  <custom-toast id="customToast" />
+</view>

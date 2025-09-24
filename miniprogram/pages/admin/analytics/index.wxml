@@ -1,0 +1,63 @@
+<view class="container">
+  <view class="header">
+    <text class="title">数据分析</text>
+  </view>
+
+  <view class="stats-grid">
+    <view class="stat-card">
+      <view class="stat-title">总生成次数</view>
+      <view class="stat-value">{{totalGenerations}}</view>
+      <view class="stat-trend {{generationTrend >= 0 ? 'up' : 'down'}}">
+        {{generationTrend}}% {{generationTrend >= 0 ? '↑' : '↓'}}
+      </view>
+    </view>
+
+    <view class="stat-card">
+      <view class="stat-title">图片总数</view>
+      <view class="stat-value">{{totalImages}}</view>
+      <view class="stat-trend {{imageTrend >= 0 ? 'up' : 'down'}}">
+        {{imageTrend}}% {{imageTrend >= 0 ? '↑' : '↓'}}
+      </view>
+    </view>
+
+    <view class="stat-card">
+      <view class="stat-title">活跃用户</view>
+      <view class="stat-value">{{activeUsers}}</view>
+      <view class="stat-trend {{userTrend >= 0 ? 'up' : 'down'}}">
+        {{userTrend}}% {{userTrend >= 0 ? '↑' : '↓'}}
+      </view>
+    </view>
+
+    <view class="stat-card">
+      <view class="stat-title">平均生成时间</view>
+      <view class="stat-value">{{avgGenerationTime}}s</view>
+    </view>
+  </view>
+
+  <view class="chart-section">
+    <view class="chart-header">
+      <text class="chart-title">生成趋势</text>
+      <view class="time-selector">
+        <text class="time-option {{timeRange === 'week' ? 'active' : ''}}" bindtap="setTimeRange" data-range="week">周</text>
+        <text class="time-option {{timeRange === 'month' ? 'active' : ''}}" bindtap="setTimeRange" data-range="month">月</text>
+      </view>
+    </view>
+    <view class="chart-container">
+      <!-- 这里将使用Canvas绘制趋势图 -->
+      <canvas canvas-id="trendChart" class="trend-chart"></canvas>
+    </view>
+  </view>
+
+  <view class="usage-section">
+    <view class="section-title">使用情况分析</view>
+    <view class="usage-list">
+      <view class="usage-item" wx:for="{{usageData}}" wx:key="date">
+        <text class="usage-date">{{item.date}}</text>
+        <view class="usage-bar-container">
+          <view class="usage-bar" style="width: {{item.percentage}}%"></view>
+          <text class="usage-count">{{item.count}}次</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

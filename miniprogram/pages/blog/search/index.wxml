@@ -1,0 +1,95 @@
+<view class="search-container">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrapper">
+      <input 
+        class="search-input" 
+        placeholder="搜索文章..." 
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+        confirm-type="search"
+        focus="{{true}}"
+      />
+      <view class="search-icon" bindtap="onSearch">
+        <text class="iconfont icon-search">🔍</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 搜索历史 -->
+  <view wx:if="{{!isSearching && searchHistory.length > 0}}" class="search-history">
+    <view class="history-header">
+      <text class="history-title">搜索历史</text>
+      <text class="clear-history" bindtap="clearHistory">清空</text>
+    </view>
+    <view class="history-tags">
+      <text 
+        wx:for="{{searchHistory}}" 
+        wx:key="*this"
+        class="history-tag"
+        bindtap="selectHistoryKeyword"
+        data-keyword="{{item}}"
+      >
+        {{item}}
+      </text>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view wx:if="{{isLoading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">搜索中...</text>
+  </view>
+
+  <!-- 搜索结果 -->
+  <view wx:elif="{{searchResults.length > 0}}" class="search-results">
+    <view class="results-header">
+      <text class="results-count">找到 {{searchResults.length}} 篇文章</text>
+    </view>
+    
+    <scroll-view class="results-list" scroll-y="true">
+      <view 
+        wx:for="{{searchResults}}" 
+        wx:key="id"
+        class="result-item"
+        bindtap="goToArticle"
+        data-article="{{item}}"
+      >
+        <view class="result-header">
+          <text class="result-title">{{item.title}}</text>
+          <text class="result-date">{{item.createdAt}}</text>
+        </view>
+        
+        <text class="result-description">{{item.description}}</text>
+        
+        <view class="result-tags">
+          <text 
+            wx:for="{{item.tags}}" 
+            wx:key="*this"
+            class="result-tag"
+          >
+            {{item}}
+          </text>
+        </view>
+        
+        <view class="result-meta">
+          <text class="result-category">{{item.category}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:elif="{{!isLoading && searchKeyword}}" class="empty-state">
+    <text class="empty-icon">🔍</text>
+    <text class="empty-text">未找到相关文章</text>
+    <text class="empty-tip">试试其他关键词</text>
+  </view>
+
+  <!-- 初始状态 -->
+  <view wx:elif="{{!isLoading && !searchKeyword}}" class="initial-state">
+    <text class="initial-icon">📝</text>
+    <text class="initial-text">输入关键词搜索文章</text>
+  </view>
+</view>

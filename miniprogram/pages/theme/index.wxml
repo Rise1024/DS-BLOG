@@ -1,0 +1,36 @@
+<view class="container {{theme}}">
+  <view class="theme-card">
+    <view class="theme-header">
+      <text class="theme-title">主题设置</text>
+      <text class="theme-desc">选择适合你的显示模式</text>
+    </view>
+
+    <view class="theme-content">
+      <view class="theme-preview {{theme === 'light' ? 'active' : ''}}" data-theme="light" bindtap="toggleTheme">
+        <view class="preview-box light">
+          <view class="preview-header"></view>
+          <view class="preview-body">
+            <view class="preview-line"></view>
+            <view class="preview-line"></view>
+          </view>
+        </view>
+        <text class="preview-text">浅色模式</text>
+      </view>
+
+      <view class="theme-preview {{theme === 'dark' ? 'active' : ''}}" data-theme="dark" bindtap="toggleTheme">
+        <view class="preview-box dark">
+          <view class="preview-header"></view>
+          <view class="preview-body">
+            <view class="preview-line"></view>
+            <view class="preview-line"></view>
+          </view>
+        </view>
+        <text class="preview-text">深色模式</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="loading-mask" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+  </view>
+</view>

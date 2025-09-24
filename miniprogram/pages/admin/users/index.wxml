@@ -1,0 +1,29 @@
+<view class="container">
+  <view class="header">
+    <text class="title">用户管理</text>
+  </view>
+
+  <view class="user-list">
+    <view class="user-item" wx:for="{{users}}" wx:key="id">
+      <view class="user-info">
+        <image class="user-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill"></image>
+        <view class="user-details">
+          <text class="user-name">{{item.nickname || '未知用户'}}</text>
+          <text class="user-id">ID: {{item.id}}</text>
+        </view>
+      </view>
+      <view class="user-role">
+        <picker bindchange="handleRoleChange" data-userid="{{item.id}}" range="{{roles}}">
+          <view class="role-text {{item.role === 'admin' ? 'role-admin' : ''}}">
+            {{item.role === 'admin' ? '管理员' : '普通用户'}}
+          </view>
+        </picker>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{!users.length}}">
+    <image class="empty-icon" src="/images/empty.png" mode="aspectFit"></image>
+    <text class="empty-text">暂无用户数据</text>
+  </view>
+</view>

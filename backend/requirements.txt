@@ -1,0 +1,14 @@
+markdown
+pygments
+playwright
+markdown-it-py
+flask
+requests
+redis
+pytz
+apscheduler
+PyJWT
+mdit-py-plugins
+python-dotenv
+minio
+PyYAML

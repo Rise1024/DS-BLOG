@@ -1,0 +1,19 @@
+<view class="login-modal" wx:if="{{show}}">  
+  <view class="modal-mask" bindtap="onClose"></view>
+  <view class="modal-content">
+    <view class="modal-header">
+      <image class="modal-logo" src="/images/default-avatar.png" mode="aspectFit"></image>
+    </view>
+    <view class="modal-body">
+      <view class="modal-title">欢迎使用</view>
+      <view class="modal-desc">请登录以使用完整功能</view>
+    </view>
+    <view class="modal-footer">
+      <button 
+        class="login-btn" 
+        bindtap="onLogin"
+      >微信登录</button>
+      <view class="cancel-btn" bindtap="onClose">暂不登录</view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,50 @@
+{
+  "pages": [
+    "pages/tools/index",
+    "pages/blog/index",
+    "pages/blog/article/index",
+    "pages/blog/search/index",
+    "pages/index/index",
+    "pages/history/index",
+    "pages/feedback/index",
+    "pages/theme/index",
+    "pages/about/index",
+    "pages/admin/index",
+    "pages/admin/users/index",
+    "pages/admin/analytics/index",
+    "pages/convert/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#1a237e",
+    "navigationBarTitleText": "东升Coding",
+    "navigationBarTextStyle": "white"  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#3f72af",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/tools/index",
+        "text": "热点",
+        "iconPath": "images/tools.png",
+        "selectedIconPath": "images/tools-active.png"
+      },
+      {
+        "pagePath": "pages/blog/index",
+        "text": "博客",
+        "iconPath": "images/blog.png",
+        "selectedIconPath": "images/blog-active.png"
+      },
+      {
+        "pagePath": "pages/index/index",
+        "text": "我的",
+        "iconPath": "images/user.png",
+        "selectedIconPath": "images/user-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
