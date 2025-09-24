@@ -30,7 +30,7 @@
         </div>
 
         <div class="sidebar-content" v-if="!leftSidebarCollapsed">
-          <!-- 搜索框 -->
+          <!-- 搜索和显示方式切换 -->
           <div class="search-section">
             <div class="search-box">
               <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -43,60 +43,152 @@
                 class="search-input"
               />
             </div>
+
+            <!-- 显示方式切换 -->
+            <div class="view-toggle">
+              <button
+                @click="viewMode = 'list'"
+                :class="['view-btn', { active: viewMode === 'list' }]"
+                title="列表视图"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+                </svg>
+                <span>列表</span>
+              </button>
+              <button
+                @click="viewMode = 'card'"
+                :class="['view-btn', { active: viewMode === 'card' }]"
+                title="卡片视图"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="9"/>
+                  <rect x="14" y="3" width="7" height="5"/>
+                  <rect x="14" y="12" width="7" height="9"/>
+                  <rect x="3" y="16" width="7" height="5"/>
+                </svg>
+                <span>卡片</span>
+              </button>
+            </div>
           </div>
 
           <!-- 文章列表 -->
           <nav class="articles-nav">
-            <div
-              v-for="article in filteredArticles"
-              :key="article.id"
-              class="article-nav-item"
-              :class="{
-                'active': currentArticle?.id === article.id,
-                'reading': isReading(article.id)
-              }"
-              @click="selectArticle(article)"
-            >
-              <div class="article-nav-content">
-                <h4 class="article-nav-title">{{ article.title }}</h4>
-                <p class="article-nav-excerpt">{{ article.description || '暂无描述' }}</p>
+            <!-- 空状态提示 -->
+            <div v-if="articles.length === 0 && !loading" class="empty-articles-state" style="padding: 2rem; text-align: center; color: #666;">
+              <div class="empty-icon" style="font-size: 3rem; margin-bottom: 1rem;">📂</div>
+              <h3>暂无文章</h3>
+              <p>该分类下还没有文章内容</p>
+            </div>
 
-                <div class="article-nav-meta">
-                  <span class="article-date">{{ formatDate(article.createdAt) }}</span>
-
-                  <div class="article-indicators">
-                    <span class="reading-time" v-if="article.reading_time">
-                      {{ article.reading_time }}min
-                    </span>
-
-                    <div class="article-status">
-                      <svg v-if="isReading(article.id)" class="status-icon reading" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="10"/>
-                      </svg>
-
-                      <svg v-else-if="isCompleted(article.id)" class="status-icon completed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22,4 12,14.01 9,11.01"/>
-                      </svg>
-                    </div>
+            <!-- 列表视图 - 按子目录分组 -->
+            <div v-if="viewMode === 'list'" class="list-view">
+              <div
+                v-for="group in groupedArticles"
+                :key="group.name"
+                class="folder-group"
+              >
+                <!-- 子目录标题 - 只有有子目录的文章才显示 -->
+                <div
+                  v-if="!group.isDirectArticles"
+                  class="folder-header"
+                  :class="{ 'expanded': group.expanded }"
+                  @click="toggleFolderGroup(group)"
+                >
+                  <div class="folder-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </div>
+                  <div class="folder-info">
+                    <div class="folder-name">{{ group.name }}</div>
+                    <div class="folder-count">{{ group.articles.length }} 篇文章</div>
+                  </div>
+                  <div class="folder-toggle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
                   </div>
                 </div>
 
-                <!-- 标签 -->
-                <div class="article-nav-tags" v-if="article.tags && article.tags.length">
-                  <span
-                    v-for="tag in article.tags.slice(0, 2)"
-                    :key="tag"
-                    class="article-nav-tag"
+                <!-- 文章列表 -->
+                <div v-if="group.expanded" class="folder-articles" :class="{ 'direct-articles': group.isDirectArticles }">
+                  <div
+                    v-for="article in group.articles"
+                    :key="article.id"
+                    class="doc-title"
+                    :class="{
+                      'active': currentArticle?.id === article.id,
+                      'reading': isReading(article.id)
+                    }"
+                    @click="selectArticle(article)"
                   >
-                    {{ tag }}
-                  </span>
+                    <svg class="doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14,2 14,8 20,8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                      <polyline points="10,9 9,9 8,9"/>
+                    </svg>
+                    <span class="doc-text">{{ article.title }}</span>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <!-- 进度指示器 -->
-              <div class="reading-progress" v-if="getReadingProgress(article.id)">
-                <div class="progress-bar" :style="{ width: getReadingProgress(article.id) + '%' }"></div>
+            <!-- 卡片视图 -->
+            <div v-else class="card-view">
+              <div
+                v-for="article in filteredArticles"
+                :key="article.id"
+                class="article-nav-item"
+                :class="{
+                  'active': currentArticle?.id === article.id,
+                  'reading': isReading(article.id)
+                }"
+                @click="selectArticle(article)"
+              >
+                <div class="article-nav-content">
+                  <h4 class="article-nav-title">{{ article.title }}</h4>
+                  <p class="article-nav-excerpt">{{ article.description || '暂无描述' }}</p>
+
+                  <div class="article-nav-meta">
+                    <span class="article-date">{{ formatDate(article.createdAt) }}</span>
+
+                    <div class="article-indicators">
+                      <span class="reading-time" v-if="article.reading_time">
+                        {{ article.reading_time }}min
+                      </span>
+
+                      <div class="article-status">
+                        <svg v-if="isReading(article.id)" class="status-icon reading" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="12" r="10"/>
+                        </svg>
+
+                        <svg v-else-if="isCompleted(article.id)" class="status-icon completed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                          <polyline points="22,4 12,14.01 9,11.01"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 标签 -->
+                  <div class="article-nav-tags" v-if="article.tags && article.tags.length">
+                    <span
+                      v-for="tag in article.tags.slice(0, 2)"
+                      :key="tag"
+                      class="article-nav-tag"
+                    >
+                      {{ tag }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- 进度指示器 -->
+                <div class="reading-progress" v-if="getReadingProgress(article.id)">
+                  <div class="progress-bar" :style="{ width: getReadingProgress(article.id) + '%' }"></div>
+                </div>
               </div>
             </div>
           </nav>
@@ -288,12 +380,100 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, defineComponent, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import Breadcrumb from '@/components/Breadcrumb.vue'
+
+// 递归树节点组件
+const TreeNode = defineComponent({
+  name: 'TreeNode',
+  props: {
+    item: Object,
+    currentArticle: Object
+  },
+  emits: ['select-article', 'toggle-folder'],
+  setup(props, { emit }) {
+    const isReading = (articleId) => {
+      const readingStatus = JSON.parse(localStorage.getItem('reading-status') || '{}')
+      return readingStatus[articleId] === 'reading'
+    }
+
+    const handleSelectArticle = (article) => {
+      emit('select-article', article)
+    }
+
+    const handleToggleFolder = (folder) => {
+      emit('toggle-folder', folder)
+    }
+
+    return {
+      isReading,
+      handleSelectArticle,
+      handleToggleFolder
+    }
+  },
+  render() {
+    const { item, currentArticle, handleSelectArticle, handleToggleFolder, isReading } = this
+
+    if (item.type === 'folder') {
+      return h('div', {
+        class: ['tree-folder', { expanded: item.expanded }]
+      }, [
+        h('div', {
+          class: 'tree-folder-header',
+          onClick: () => handleToggleFolder(item)
+        }, [
+          h('svg', {
+            class: 'tree-folder-icon',
+            viewBox: '0 0 24 24',
+            fill: 'none',
+            stroke: 'currentColor',
+            'stroke-width': '2'
+          }, [
+            h('path', { d: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z' })
+          ]),
+          h('span', { class: 'tree-folder-name' }, item.name),
+          h('span', { class: 'tree-folder-count' }, `(${item.children?.length || 0})`)
+        ]),
+        item.expanded && item.children?.length ? h('div', { class: 'tree-children' },
+          item.children.map(child =>
+            h(TreeNode, {
+              key: child.id || child.path,
+              item: child,
+              currentArticle: currentArticle,
+              'onSelect-article': handleSelectArticle,
+              'onToggle-folder': handleToggleFolder
+            })
+          )
+        ) : null
+      ])
+    } else {
+      return h('div', {
+        class: ['tree-file', {
+          'active': currentArticle?.id === item.id,
+          'reading': isReading(item.id)
+        }],
+        onClick: () => handleSelectArticle(item)
+      }, [
+        h('div', { class: 'tree-file-content' }, [
+          h('svg', {
+            class: 'tree-file-icon',
+            viewBox: '0 0 24 24',
+            fill: 'none',
+            stroke: 'currentColor',
+            'stroke-width': '2'
+          }, [
+            h('path', { d: 'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z' })
+          ]),
+          h('span', { class: 'tree-file-name' }, item.title || item.name)
+        ])
+      ])
+    }
+  }
+})
 
 const router = useRouter()
 const route = useRoute()
@@ -314,6 +494,10 @@ const isBookmarked = ref(false)
 // 阅读状态
 const readingStatus = ref({}) // { articleId: 'reading' | 'completed' }
 const readingProgressMap = ref({}) // { articleId: percentage }
+
+// 显示模式
+const viewMode = ref('list') // 'list' | 'card'
+const folderExpandState = ref({}) // { folderName: boolean }
 
 // 计算属性
 const filteredArticles = computed(() => {
@@ -345,6 +529,108 @@ const nextArticle = computed(() => {
   return index >= 0 && index < articles.value.length - 1 ? articles.value[index + 1] : null
 })
 
+// 按子目录分组的文章
+const groupedArticles = computed(() => {
+  const articlesList = filteredArticles.value || []
+  
+  if (!articlesList.length) return []
+
+  // 按子目录分组
+  const groups = new Map()
+  const articlesWithoutSubcategory = []
+  
+  articlesList.forEach(article => {
+    if (article.subcategory) {
+      const folderName = article.subcategory
+      
+      if (!groups.has(folderName)) {
+        groups.set(folderName, {
+          name: folderName,
+          articles: [],
+          expanded: folderExpandState.value[folderName] ?? true
+        })
+      }
+      
+      groups.get(folderName).articles.push(article)
+    } else {
+      // 没有子目录的文章直接添加到列表中
+      articlesWithoutSubcategory.push(article)
+    }
+  })
+
+  // 按文件夹名称排序
+  const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+    return a.name.localeCompare(b.name)
+  })
+
+  // 如果有没有子目录的文章，创建一个特殊的组来显示它们
+  if (articlesWithoutSubcategory.length > 0) {
+    return [
+      ...sortedGroups,
+      {
+        name: 'articles',
+        articles: articlesWithoutSubcategory,
+        expanded: true,
+        isDirectArticles: true
+      }
+    ]
+  }
+
+  return sortedGroups
+})
+
+// 文章树结构 - 基于真实文件路径和子分类
+const articleTree = computed(() => {
+  if (!articles.value || articles.value.length === 0) {
+    return []
+  }
+
+  const tree = []
+  const folderMap = new Map()
+
+  articles.value.forEach(article => {
+    // 直接使用后端返回的 subcategory 字段来判断
+    if (!article.subcategory) {
+      // 没有子分类，放在根级别
+      tree.push({
+        ...article,
+        type: 'file',
+        path: article.path || article.id,
+        name: article.title || '未命名文章'
+      })
+      return
+    }
+
+    // 有子分类，创建目录结构
+    const folderName = article.subcategory
+    const currentPath = folderName
+
+    let folder = tree.find(item => item.type === 'folder' && item.name === folderName)
+
+    if (!folder) {
+      folder = {
+        type: 'folder',
+        name: folderName,
+        path: currentPath,
+        children: [],
+        expanded: folderExpandState.value[currentPath] ?? true
+      }
+      tree.push(folder)
+      folderMap.set(currentPath, folder)
+    }
+
+    // 添加文章到对应目录
+    folder.children.push({
+      ...article,
+      type: 'file',
+      path: article.path || article.id,
+      name: article.title || '未命名文章'
+    })
+  })
+
+  return tree
+})
+
 // 圆形进度条计算
 const circleCircumference = computed(() => 2 * Math.PI * 26)
 const circleOffset = computed(() => {
@@ -355,31 +641,63 @@ const circleOffset = computed(() => {
 // 方法
 const getCategoryIcon = (categoryName) => {
   const icons = {
-    'Spring': {
-      template: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.8537 1.4158c-.4644-.2122-.8934-.0619-1.133.3608L18.0323 6.3784c-.2396.4227.0159.9668.5107 1.0834l2.4134.5691c.4947.1166.8097-.1543.7901-.6803l-.0986-2.6415c-.0196-.5259-.2929-.8485-.7942-.2943z"/></svg>`
-    },
-    'default': {
-      template: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`
-    }
+    'Spring': () => h('svg', {
+      viewBox: '0 0 24 24',
+      fill: 'currentColor'
+    }, [
+      h('path', { d: 'M21.8537 1.4158c-.4644-.2122-.8934-.0619-1.133.3608L18.0323 6.3784c-.2396.4227.0159.9668.5107 1.0834l2.4134.5691c.4947.1166.8097-.1543.7901-.6803l-.0986-2.6415c-.0196-.5259-.2929-.8485-.7942-.2943z' })
+    ]),
+    'default': () => h('svg', {
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': '2'
+    }, [
+      h('path', { d: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z' })
+    ])
   }
-  return icons[categoryName] || icons['default']
+  const iconFunc = icons[categoryName] || icons['default']
+  return iconFunc()
 }
 
 const loadCategoryArticles = async (category) => {
   loading.value = true
   try {
-    const response = await axios.get(`${store.state.serverUrl}/api/blog/articles?category=${encodeURIComponent(category)}`)
+    const encodedCategory = encodeURIComponent(category)
+    const url = `${store.state.serverUrl}/api/blog/articles?category=${encodedCategory}&includeSubcategories=true`
+
+    const response = await axios.get(url)
 
     if (response.data?.success) {
       articles.value = response.data.data || []
+
+      // 后端如果不支持 includeSubcategories 参数，尝试基于文件路径增强数据
+      articles.value = articles.value.map(article => {
+        if (!article.subcategory && article.file_path) {
+          // 从文件路径提取子分类信息
+          const pathParts = article.file_path.replace(/.*\/blog\//, '').split('/')
+          if (pathParts.length > 2) {
+            const subcategory = pathParts[pathParts.length - 2]
+            return {
+              ...article,
+              subcategory: subcategory !== pathParts[0] ? subcategory : null,
+              path: pathParts.slice(0, -1).join('/')
+            }
+          }
+        }
+        return article
+      })
 
       // 默认选择第一篇文章
       if (articles.value.length > 0 && !currentArticle.value) {
         await selectArticle(articles.value[0])
       }
+    } else {
+      articles.value = []
     }
   } catch (error) {
     console.error('加载文章失败:', error)
+    articles.value = []
   } finally {
     loading.value = false
   }
@@ -431,7 +749,6 @@ const updateActiveHeading = () => {
   if (!currentArticle.value?.headings) return
 
   const headings = currentArticle.value.headings
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop
 
   for (let i = headings.length - 1; i >= 0; i--) {
     const heading = headings[i]
@@ -553,6 +870,15 @@ const setReadingStatus = (articleId, status) => {
   localStorage.setItem('reading-status', JSON.stringify(readingStatus.value))
 }
 
+// 切换文件夹展开状态
+const toggleFolderGroup = (group) => {
+  group.expanded = !group.expanded
+  folderExpandState.value[group.name] = group.expanded
+
+  // 保存折叠状态到本地存储
+  localStorage.setItem('blog-folder-expand-state', JSON.stringify(folderExpandState.value))
+}
+
 
 // 监听滚动事件
 const handleScroll = () => {
@@ -579,11 +905,20 @@ onMounted(() => {
     readingStatus.value = JSON.parse(savedReadingStatus)
   }
 
-  // 获取分类
-  currentCategory.value = route.params.category
+  // 恢复文件夹展开状态
+  const savedFolderExpandState = localStorage.getItem('blog-folder-expand-state')
+  if (savedFolderExpandState) {
+    folderExpandState.value = JSON.parse(savedFolderExpandState)
+  }
+
+  // 获取分类 - 确保正确解码中文参数
+  currentCategory.value = decodeURIComponent(route.params.category || '')
+  console.log('Current category (decoded):', currentCategory.value)
 
   // 加载文章
-  loadCategoryArticles(currentCategory.value)
+  if (currentCategory.value) {
+    loadCategoryArticles(currentCategory.value)
+  }
 
   // 监听滚动
   window.addEventListener('scroll', handleScroll)
@@ -594,6 +929,18 @@ onUnmounted(() => {
 })
 
 // 监听路由变化
+watch(() => route.params.category, async (newCategory) => {
+  if (newCategory) {
+    const decodedCategory = decodeURIComponent(newCategory)
+    if (decodedCategory !== currentCategory.value) {
+      console.log('Category changed to:', decodedCategory)
+      currentCategory.value = decodedCategory
+      currentArticle.value = null // 清除当前文章
+      await loadCategoryArticles(decodedCategory)
+    }
+  }
+})
+
 watch(() => route.query.article, async (newArticleId) => {
   if (newArticleId && articles.value.length > 0) {
     const article = articles.value.find(a => a.id === newArticleId)
@@ -725,9 +1072,14 @@ watch(() => route.query.article, async (newArticleId) => {
   gap: var(--space-4);
 }
 
-/* 搜索 */
+/* 搜索 - 现代化设计 */
 .search-section {
   flex-shrink: 0;
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--primary-25) 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .search-box {
@@ -736,28 +1088,119 @@ watch(() => route.query.article, async (newArticleId) => {
 
 .search-icon {
   position: absolute;
-  left: var(--space-3);
+  left: var(--space-4);
   top: 50%;
   transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   color: var(--color-text-muted);
+  transition: color var(--transition-normal);
+  z-index: 2;
 }
 
 .search-input {
   width: 100%;
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-10);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12);
+  border: 2px solid var(--color-border-primary);
+  border-radius: var(--radius-xl);
   font-size: var(--font-size-sm);
-  background-color: var(--color-bg-secondary);
-  transition: all var(--transition-normal);
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+  transition: all var(--transition-smooth);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .search-input:focus {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  background-color: var(--color-bg-primary);
+  border-color: var(--primary-400);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1), 0 4px 12px rgba(59, 130, 246, 0.15);
+  background: var(--color-bg-primary);
+  outline: none;
+}
+
+.search-input:focus + .search-icon {
+  color: var(--primary-600);
+}
+
+/* 显示方式切换 - 现代化设计 */
+.view-toggle {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--primary-25) 100%);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.view-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  position: relative;
+  overflow: hidden;
+}
+
+.view-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-200) 100%);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  border-radius: var(--radius-lg);
+}
+
+.view-btn:hover {
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--color-bg-primary) 100%);
+  color: var(--primary-700);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.1);
+}
+
+.view-btn:hover::before {
+  opacity: 0.3;
+}
+
+.view-btn.active {
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+.view-btn.active::before {
+  opacity: 0;
+}
+
+.view-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: all var(--transition-normal);
+  z-index: 1;
+  position: relative;
+}
+
+.view-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.view-btn.active svg {
+  transform: scale(1.1);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 /* 文章导航 */
@@ -768,60 +1211,495 @@ watch(() => route.query.article, async (newArticleId) => {
   gap: var(--space-2);
 }
 
-.article-nav-item {
-  background: var(--color-bg-secondary);
+/* 目录树视图 - 紧凑列表设计 */
+.tree-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0;
+}
+
+/* 文件夹样式 - 紧凑列表项设计 */
+.tree-folder {
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
   border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  cursor: pointer;
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
 }
 
-.article-nav-item:hover {
-  background: var(--color-bg-primary);
+.tree-folder:hover {
+  background: var(--primary-25);
+  border-color: var(--primary-200);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.tree-folder.expanded {
+  background: var(--primary-50);
   border-color: var(--primary-300);
-  transform: translateX(4px);
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.15);
+}
+
+.tree-folder-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  min-height: 40px;
+}
+
+.tree-folder-header:hover {
+  background: var(--primary-50);
+}
+
+.tree-folder.expanded .tree-folder-header {
+  background: var(--primary-100);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+/* 展开/收起指示器 - 简洁设计 */
+.tree-folder-header::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 6px solid var(--color-text-secondary);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.tree-folder.expanded .tree-folder-header::before {
+  transform: rotate(90deg);
+  border-left-color: var(--primary-600);
+}
+
+.tree-folder-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--primary-600);
+  flex-shrink: 0;
+}
+
+.tree-folder-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.tree-folder-count {
+  font-size: var(--font-size-xs);
+  background: var(--primary-100);
+  color: var(--primary-700);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
+  min-width: 20px;
+  text-align: center;
+}
+
+/* 子项容器 - 简洁设计 */
+.tree-children {
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border-primary);
+  padding: var(--space-1) 0;
+  position: relative;
+}
+
+.tree-children::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--primary-200);
+}
+
+/* 文件项样式 - 简洁列表设计 */
+.tree-file {
+  transition: all var(--transition-normal);
+  position: relative;
+}
+
+.tree-file-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin: 0 var(--space-1);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  min-height: 36px;
+}
+
+/* 子文件缩进和连接线 */
+.tree-children .tree-file-content {
+  margin-left: var(--space-6);
+  position: relative;
+}
+
+.tree-children .tree-file-content::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  width: 12px;
+  height: 1px;
+  background: var(--primary-300);
+  transform: translateY(-50%);
+}
+
+.tree-children .tree-file-content::after {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 0;
+  width: 1px;
+  height: 50%;
+  background: var(--primary-300);
+}
+
+.tree-children .tree-file:last-child .tree-file-content::after {
+  height: 0;
+}
+
+.tree-file-content:hover {
+  background: var(--primary-50);
+  border-color: var(--primary-200);
+  transform: translateX(2px);
+}
+
+.tree-file.active .tree-file-content {
+  background: var(--primary-100);
+  border-color: var(--primary-300);
+  border-left: 3px solid var(--primary-600);
+  transform: translateX(1px);
+}
+
+.tree-file.reading .tree-file-content {
+  border-left: 3px solid var(--warning-500);
+  background: var(--warning-25);
+}
+
+.tree-file.reading.active .tree-file-content {
+  background: var(--warning-50);
+  border-left: 3px solid var(--warning-600);
+}
+
+.tree-file-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: all var(--transition-normal);
+}
+
+.tree-file.active .tree-file-icon {
+  color: var(--primary-600);
+}
+
+.tree-file-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-normal);
+  flex: 1;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all var(--transition-normal);
+}
+
+.tree-file.active .tree-file-name {
+  font-weight: var(--font-weight-semibold);
+  color: var(--primary-700);
+}
+
+.tree-file:hover .tree-file-name {
+  color: var(--primary-600);
+}
+
+/* 列表视图 - 按子目录分组 */
+.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.folder-group {
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid #ddd;
+  overflow: hidden;
+}
+
+.folder-group:hover {
+  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.08);
+}
+
+.folder-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  min-height: 32px;
+}
+
+.folder-header:hover {
+  background: var(--primary-50);
+}
+
+.folder-header.expanded {
+  background: var(--primary-100);
+  border-bottom-color: var(--primary-200);
+}
+
+.folder-icon {
+  width: 16px;
+  height: 16px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.folder-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.folder-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+
+.folder-count {
+  font-size: 11px;
+  color: #666;
+  font-weight: 400;
+}
+
+.folder-toggle {
+  width: 16px;
+  height: 16px;
+  color: #666;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.folder-header.expanded .folder-toggle {
+  transform: rotate(90deg);
+  color: var(--primary-600);
+}
+
+.folder-articles {
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.folder-articles.direct-articles {
+  background: transparent;
+  padding: 0;
+}
+
+.doc-title {
+  font-size: 16px;
+  font-weight: 400;
+  color: #333;
+  line-height: 1.4;
+  cursor: pointer;
+  padding: 3px 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+}
+
+.doc-icon {
+  width: 14px;
+  height: 14px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.doc-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.doc-title:hover {
+  background: #f5f5f5;
+  color: #1976d2;
+}
+
+.doc-title:hover .doc-icon {
+  color: #1976d2;
+}
+
+.doc-title.active {
+  background: #e3f2fd;
+  color: #1976d2;
+  font-weight: 500;
+  border-left: 2px solid #2196f3;
+  padding-left: 2px;
+}
+
+.doc-title.active .doc-icon {
+  color: #1976d2;
+}
+
+.doc-title.reading {
+  background: #fff3e0;
+  border-left: 2px solid #ff9800;
+  padding-left: 2px;
+}
+
+.doc-title.reading .doc-icon {
+  color: #ff9800;
+}
+
+.doc-title.reading.active {
+  background: #ffecb3;
+  border-left: 2px solid #f57c00;
+  padding-left: 2px;
+}
+
+.doc-title.reading.active .doc-icon {
+  color: #f57c00;
+}
+
+/* 根级文件特殊样式 */
+.tree-view > .tree-file .tree-file-content {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-primary);
+  margin-bottom: var(--space-1);
+}
+
+.tree-view > .tree-file .tree-file-content:hover {
+  border-color: var(--primary-300);
+  transform: translateX(2px);
+}
+
+.tree-view > .tree-file.active .tree-file-content {
+  border-color: var(--primary-500);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+/* 卡片视图 - 现代化设计 */
+.article-nav-item {
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--primary-25) 100%);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.article-nav-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-300));
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.article-nav-item:hover {
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--color-bg-primary) 100%);
+  border-color: var(--primary-300);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.15);
+}
+
+.article-nav-item:hover::before {
+  opacity: 1;
 }
 
 .article-nav-item.active {
   background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-50) 100%);
-  border-color: var(--primary-500);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  border-color: var(--primary-400);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2);
+  transform: translateY(-2px);
+}
+
+.article-nav-item.active::before {
+  opacity: 1;
 }
 
 .article-nav-item.reading {
   border-left: 4px solid var(--warning-500);
+  background: linear-gradient(135deg, var(--warning-25) 0%, var(--color-bg-primary) 100%);
+}
+
+.article-nav-item.reading::before {
+  background: linear-gradient(90deg, var(--warning-500), var(--warning-300));
+  opacity: 1;
 }
 
 .article-nav-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  position: relative;
+  z-index: 1;
 }
 
 .article-nav-title {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: color var(--transition-normal);
+}
+
+.article-nav-item:hover .article-nav-title {
+  color: var(--primary-700);
 }
 
 .article-nav-excerpt {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.6;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  transition: color var(--transition-normal);
+}
+
+.article-nav-item:hover .article-nav-excerpt {
+  color: var(--color-text-primary);
 }
 
 .article-nav-meta {
@@ -829,48 +1707,75 @@ watch(() => route.query.article, async (newArticleId) => {
   justify-content: space-between;
   align-items: center;
   font-size: var(--font-size-xs);
+  margin-top: var(--space-2);
 }
 
 .article-date {
   color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-bg-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
 }
 
 .article-indicators {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .reading-time {
   color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  background: var(--primary-100);
+  color: var(--primary-700);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
 }
 
 .status-icon {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
+  transition: all var(--transition-normal);
 }
 
 .status-icon.reading {
   color: var(--warning-500);
+  animation: pulse 2s infinite;
 }
 
 .status-icon.completed {
   color: var(--success-500);
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .article-nav-tags {
   display: flex;
-  gap: var(--space-1);
+  gap: var(--space-2);
   flex-wrap: wrap;
+  margin-top: var(--space-2);
 }
 
 .article-nav-tag {
-  background: var(--color-bg-muted);
-  color: var(--color-text-secondary);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-200) 100%);
+  color: var(--primary-700);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
   font-size: 10px;
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
+  border: 1px solid var(--primary-200);
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2);
+  transition: all var(--transition-normal);
+}
+
+.article-nav-tag:hover {
+  background: linear-gradient(135deg, var(--primary-200) 0%, var(--primary-300) 100%);
+  transform: scale(1.05);
 }
 
 .reading-progress {
@@ -878,14 +1783,17 @@ watch(() => route.query.article, async (newArticleId) => {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   background: var(--color-border-primary);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  overflow: hidden;
 }
 
 .progress-bar {
   height: 100%;
-  background: var(--primary-600);
-  transition: width var(--transition-normal);
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-300));
+  transition: width var(--transition-smooth);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }
 
 /* 折叠状态 */
@@ -1300,7 +2208,7 @@ watch(() => route.query.article, async (newArticleId) => {
   color: var(--primary-600);
 }
 
-/* 响应式设计 */
+/* 响应式设计 - 现代化优化 */
 @media (max-width: 1200px) {
   .right-sidebar {
     position: fixed;
@@ -1308,11 +2216,20 @@ watch(() => route.query.article, async (newArticleId) => {
     top: 0;
     z-index: 1000;
     transform: translateX(100%);
+    transition: transform var(--transition-smooth);
   }
 
   .right-sidebar:not(.collapsed) {
     transform: translateX(0);
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15);
+  }
+
+  .tree-view {
+    gap: var(--space-2);
+  }
+
+  .article-nav-item {
+    padding: var(--space-4);
   }
 }
 
@@ -1325,12 +2242,37 @@ watch(() => route.query.article, async (newArticleId) => {
     position: static;
     width: 100%;
     height: auto;
-    max-height: 300px;
+    max-height: 400px;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border-primary);
   }
 
   .left-sidebar.collapsed {
-    height: 60px;
-    max-height: 60px;
+    height: 80px;
+    max-height: 80px;
+  }
+
+  .sidebar-content {
+    padding: var(--space-3);
+  }
+
+  .search-section {
+    padding: var(--space-3);
+  }
+
+  .search-input {
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-10);
+    font-size: var(--font-size-base);
+  }
+
+  .view-toggle {
+    margin-top: var(--space-3);
+    padding: var(--space-1);
+  }
+
+  .view-btn {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
   }
 
   .main-content {
@@ -1341,8 +2283,10 @@ watch(() => route.query.article, async (newArticleId) => {
     position: static;
     width: 100%;
     height: auto;
-    max-height: 200px;
+    max-height: 300px;
     order: 3;
+    border-left: none;
+    border-top: 1px solid var(--color-border-primary);
   }
 
   .article-reader {
@@ -1355,32 +2299,297 @@ watch(() => route.query.article, async (newArticleId) => {
 
   .article-navigation {
     flex-direction: column;
+    gap: var(--space-3);
   }
 
   .nav-btn {
     max-width: none;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* 移动端卡片优化 */
+  .article-nav-item {
+    padding: var(--space-4);
+    margin-bottom: var(--space-3);
+  }
+
+  .article-nav-title {
+    font-size: var(--font-size-sm);
+    -webkit-line-clamp: 2;
+  }
+
+  .article-nav-excerpt {
+    font-size: var(--font-size-xs);
+    -webkit-line-clamp: 2;
+  }
+
+  .article-nav-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .article-indicators {
+    align-self: flex-end;
+  }
+
+  /* 移动端目录树优化 */
+  .tree-folder-header {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .tree-file-content {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .tree-children .tree-file-content {
+    margin-left: var(--space-6);
+  }
+
+  /* 移动端列表视图优化 */
+  .folder-header {
+    padding: 1px 4px;
+    min-height: 16px;
+  }
+
+  .folder-name {
+    font-size: 9px;
+  }
+
+  .folder-count {
+    font-size: 6px;
+  }
+
+  .article-item {
+    padding: 1px 4px;
+    min-height: 14px;
+  }
+
+  .article-title {
+    font-size: 7px;
+    line-height: 1.0;
   }
 }
 
-/* 滚动条样式 */
+@media (max-width: 480px) {
+  .left-sidebar {
+    max-height: 350px;
+  }
+
+  .left-sidebar.collapsed {
+    height: 70px;
+    max-height: 70px;
+  }
+
+  .sidebar-content {
+    padding: var(--space-2);
+  }
+
+  .search-section {
+    padding: var(--space-2);
+  }
+
+  .article-reader {
+    padding: var(--space-3);
+  }
+
+  .article-title {
+    font-size: var(--font-size-xl);
+  }
+
+  .article-nav-item {
+    padding: var(--space-3);
+  }
+
+  .article-nav-title {
+    font-size: var(--font-size-sm);
+  }
+
+  .article-nav-excerpt {
+    font-size: 11px;
+  }
+
+  .article-nav-tags {
+    gap: var(--space-1);
+  }
+
+  .article-nav-tag {
+    font-size: 9px;
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .tree-folder-header {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .tree-file-content {
+    padding: var(--space-2);
+  }
+
+  .tree-children .tree-file-content {
+    margin-left: var(--space-4);
+  }
+}
+
+/* 现代化滚动条样式 */
 .sidebar-content::-webkit-scrollbar,
 .right-sidebar::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .sidebar-content::-webkit-scrollbar-track,
 .right-sidebar::-webkit-scrollbar-track {
   background: var(--color-bg-secondary);
+  border-radius: 4px;
 }
 
 .sidebar-content::-webkit-scrollbar-thumb,
 .right-sidebar::-webkit-scrollbar-thumb {
-  background: var(--color-border-primary);
-  border-radius: 3px;
+  background: linear-gradient(180deg, var(--primary-300) 0%, var(--primary-500) 100%);
+  border-radius: 4px;
+  transition: all var(--transition-normal);
 }
 
 .sidebar-content::-webkit-scrollbar-thumb:hover,
 .right-sidebar::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: linear-gradient(180deg, var(--primary-400) 0%, var(--primary-600) 100%);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+/* 现代化动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 文章列表动画 */
+.article-nav-item {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.article-nav-item:nth-child(1) { animation-delay: 0.1s; }
+.article-nav-item:nth-child(2) { animation-delay: 0.15s; }
+.article-nav-item:nth-child(3) { animation-delay: 0.2s; }
+.article-nav-item:nth-child(4) { animation-delay: 0.25s; }
+.article-nav-item:nth-child(5) { animation-delay: 0.3s; }
+
+/* 目录树动画 */
+.tree-folder {
+  animation: slideInLeft 0.4s ease-out;
+}
+
+.tree-file {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* 搜索框焦点动画 */
+.search-input:focus {
+  animation: scaleIn 0.2s ease-out;
+}
+
+/* 按钮点击动画 */
+.view-btn:active,
+.action-btn:active,
+.nav-btn:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease-out;
+}
+
+/* 卡片悬停动画增强 */
+.article-nav-item:hover {
+  animation: none;
+}
+
+.article-nav-item:hover .article-nav-content {
+  animation: slideInLeft 0.2s ease-out;
+}
+
+/* 加载状态动画 */
+.loading-spinner {
+  animation: spin 1s linear infinite, pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* 状态指示器动画 */
+.status-icon.reading {
+  animation: pulse 2s infinite, bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-3px); }
+  60% { transform: translateY(-2px); }
+}
+
+/* 进度条动画 */
+.progress-bar {
+  animation: progressGlow 2s ease-in-out infinite;
+}
+
+@keyframes progressGlow {
+  0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); }
+}
+
+/* 标签悬停动画 */
+.article-nav-tag:hover {
+  animation: bounce 0.3s ease-out;
+}
+
+/* 文件夹展开动画 */
+.tree-children {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+/* 侧边栏切换动画 */
+.left-sidebar,
+.right-sidebar {
+  transition: all var(--transition-smooth);
+}
+
+/* 文章内容淡入动画 */
+.article-reader {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* 空状态动画 */
+.empty-state {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.empty-icon {
+  animation: bounce 2s infinite;
 }
 </style>

@@ -63,64 +63,102 @@ def extract_headings_from_html(html_content):
     return headings
 
 def scan_blog_directory():
-    """扫描博客目录，获取所有分类和文章"""
+    """扫描博客目录，获取所有分类和文章，支持多级子目录"""
     categories = {}
     blog_dir = get_blog_dir()
-    
+
     if not os.path.exists(blog_dir):
         os.makedirs(blog_dir, exist_ok=True)
         return categories
-    
+
+    def scan_directory_recursively(base_path, category_name, relative_path=""):
+        """递归扫描目录"""
+        articles = []
+        current_path = os.path.join(base_path, relative_path) if relative_path else base_path
+
+        if not os.path.isdir(current_path):
+            return articles
+
+        for item_name in os.listdir(current_path):
+            item_path = os.path.join(current_path, item_name)
+
+            if os.path.isfile(item_path) and item_name.endswith('.md'):
+                try:
+                    with open(item_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    frontmatter, markdown_content = parse_markdown_frontmatter(content)
+
+                    # 构建文章路径信息
+                    path_parts = relative_path.split('/') if relative_path else []
+                    subcategory = path_parts[-1] if path_parts else None
+
+                    # 生成文章ID（基于完整路径）
+                    if relative_path:
+                        article_id = f"{category_name}/{relative_path}/{item_name[:-3]}"
+                        logical_path = f"{category_name}/{relative_path}/{item_name[:-3]}"
+                    else:
+                        article_id = f"{category_name}/{item_name[:-3]}"
+                        logical_path = f"{category_name}/{item_name[:-3]}"
+
+                    # 提取文章信息
+                    article_info = {
+                        'id': article_id,
+                        'title': frontmatter.get('title', item_name[:-3]),
+                        'description': frontmatter.get('description', ''),
+                        'tags': frontmatter.get('tags', []),
+                        'category': category_name,
+                        'subcategory': subcategory,
+                        'path': logical_path,
+                        'date': frontmatter.get('date', ''),
+                        'createdAt': frontmatter.get('date', ''),
+                        'updatedAt': frontmatter.get('date', ''),
+                        'content': markdown_content,
+                        'frontmatter': frontmatter,
+                        'file_path': item_path,
+                        'filename': item_name
+                    }
+
+                    # 生成摘要
+                    if not article_info['description']:
+                        # 从内容中提取摘要
+                        plain_text = re.sub(r'[#*`\[\]]', '', markdown_content)
+                        plain_text = re.sub(r'\n+', ' ', plain_text).strip()
+                        article_info['description'] = plain_text[:200] + ('...' if len(plain_text) > 200 else '')
+
+                    articles.append(article_info)
+
+                except Exception as e:
+                    print(f"Error reading {item_path}: {e}")
+                    continue
+
+            elif os.path.isdir(item_path):
+                # 递归扫描子目录
+                sub_relative_path = f"{relative_path}/{item_name}" if relative_path else item_name
+                sub_articles = scan_directory_recursively(base_path, category_name, sub_relative_path)
+                articles.extend(sub_articles)
+
+        return articles
+
+    # 扫描所有主分类目录
     for category_name in os.listdir(blog_dir):
         category_path = os.path.join(blog_dir, category_name)
         if os.path.isdir(category_path):
-            articles = []
-            
-            for filename in os.listdir(category_path):
-                if filename.endswith('.md'):
-                    file_path = os.path.join(category_path, filename)
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                        
-                        frontmatter, markdown_content = parse_markdown_frontmatter(content)
-                        
-                        # 生成文章ID（基于文件路径）
-                        article_id = f"{category_name}/{filename[:-3]}"
-                        
-                        # 提取文章信息
-                        article_info = {
-                            'id': article_id,
-                            'title': frontmatter.get('title', filename[:-3]),
-                            'description': frontmatter.get('description', ''),
-                            'tags': frontmatter.get('tags', []),
-                            'category': category_name,
-                            'date': frontmatter.get('date', ''),
-                            'createdAt': frontmatter.get('date', ''),
-                            'updatedAt': frontmatter.get('date', ''),
-                            'content': markdown_content,
-                            'frontmatter': frontmatter,
-                            'file_path': file_path,
-                            'filename': filename
-                        }
-                        
-                        # 生成摘要
-                        if not article_info['description']:
-                            # 从内容中提取摘要
-                            plain_text = re.sub(r'[#*`\[\]]', '', markdown_content)
-                            plain_text = re.sub(r'\n+', ' ', plain_text).strip()
-                            article_info['description'] = plain_text[:200] + ('...' if len(plain_text) > 200 else '')
-                        
-                        articles.append(article_info)
-                        
-                    except Exception as e:
-                        print(f"Error reading {file_path}: {e}")
-                        continue
-            
-            # 按日期排序
-            articles.sort(key=lambda x: x.get('date', ''), reverse=True)
+            articles = scan_directory_recursively(category_path, category_name)
+
+            # 按日期排序，处理空值和类型不一致问题
+            def safe_sort_key(article):
+                date_val = article.get('date', '')
+                if isinstance(date_val, str):
+                    return date_val
+                elif date_val is None:
+                    return ''
+                else:
+                    return str(date_val)
+
+            articles.sort(key=safe_sort_key, reverse=True)
             categories[category_name] = articles
-    
+
     return categories
 
 def get_all_articles():
@@ -296,16 +334,42 @@ def get_categories():
         category_list = []
 
         for category_name, articles in categories.items():
-            # 增强分类信息
-            last_updated = max(
-                (article.get('updatedAt') or article.get('createdAt') for article in articles),
-                default=None
-            )
+            # 统计子分类信息
+            subcategory_stats = {}
+            root_articles = []  # 根级别文章
+
+            for article in articles:
+                if article.get('subcategory'):
+                    subcategory = article['subcategory']
+                    if subcategory not in subcategory_stats:
+                        subcategory_stats[subcategory] = {
+                            'name': subcategory,
+                            'count': 0,
+                            'articles': []
+                        }
+                    subcategory_stats[subcategory]['count'] += 1
+                    subcategory_stats[subcategory]['articles'].append(article)
+                else:
+                    root_articles.append(article)
+
+            # 构建子分类列表
+            children = list(subcategory_stats.values())
+
+            # 增强分类信息，安全处理日期
+            dates = []
+            for article in articles:
+                date_val = article.get('updatedAt') or article.get('createdAt')
+                if date_val and isinstance(date_val, str):
+                    dates.append(date_val)
+
+            last_updated = max(dates) if dates else None
 
             category_list.append({
                 'name': category_name,
-                'count': len(articles),
-                'articles': articles,
+                'count': len(articles),  # 包含所有文章（根级别+子分类）
+                'articles': articles,  # 完整文章列表
+                'root_articles': root_articles,  # 根级别文章
+                'children': children,  # 子分类信息
                 'description': f'{category_name}技术相关文章',
                 'lastUpdated': last_updated,
                 'featured': len(articles) > 10,  # 文章数量>10的设为精选
