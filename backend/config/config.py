@@ -70,7 +70,7 @@ class Config:
     LOG_BACKUP_COUNT = 10
 
     # 博客配置
-    BLOG_DIR = os.environ.get("BLOG_DIR") or "/Users/ht/VSCode/video/blog"
+    BLOG_DIR = os.environ.get("BLOG_DIR") or "/Users/ht/IdeaProjects/ME/Java-Labs/blog"
 
     # 图片输出配置
     OUTPUT_IMAGES_DIR = os.environ.get("OUTPUT_IMAGES_DIR") or "output_images/mdTpng"
