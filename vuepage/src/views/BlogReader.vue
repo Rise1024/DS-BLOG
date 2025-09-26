@@ -2038,6 +2038,52 @@ watch(() => route.query.article, async (newArticleId) => {
   color: var(--color-text-primary);
 }
 
+/* 表格样式 */
+.markdown-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-6) 0;
+  background-color: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-primary);
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border: 1px solid var(--color-border-primary);
+  vertical-align: top;
+}
+
+.markdown-content :deep(th) {
+  background-color: var(--color-bg-secondary);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  border-bottom: 2px solid var(--color-border-primary);
+}
+
+.markdown-content :deep(tbody tr:nth-child(even)) {
+  background-color: var(--color-bg-muted);
+}
+
+.markdown-content :deep(tbody tr:hover) {
+  background-color: var(--primary-25);
+  transition: background-color var(--transition-normal);
+}
+
+.markdown-content :deep(td:first-child),
+.markdown-content :deep(th:first-child) {
+  border-left: none;
+}
+
+.markdown-content :deep(td:last-child),
+.markdown-content :deep(th:last-child) {
+  border-right: none;
+}
+
 /* 文章导航 */
 .article-footer {
   border-top: 1px solid var(--color-border-primary);
@@ -2252,6 +2298,16 @@ watch(() => route.query.article, async (newArticleId) => {
     min-height: 130px;
     max-height: 150px;
   }
+
+  /* 表格响应式优化 */
+  .markdown-content :deep(table) {
+    font-size: var(--font-size-sm);
+  }
+
+  .markdown-content :deep(th),
+  .markdown-content :deep(td) {
+    padding: var(--space-2) var(--space-3);
+  }
 }
 
 @media (max-width: 768px) {
@@ -2463,6 +2519,20 @@ watch(() => route.query.article, async (newArticleId) => {
 
   .tree-children .tree-file-content {
     margin-left: var(--space-4);
+  }
+
+  /* 移动端表格横向滚动 */
+  .markdown-content :deep(table) {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: var(--font-size-xs);
+  }
+
+  .markdown-content :deep(th),
+  .markdown-content :deep(td) {
+    padding: var(--space-1) var(--space-2);
+    white-space: nowrap;
   }
 }
 

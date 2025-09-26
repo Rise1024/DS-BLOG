@@ -16,12 +16,13 @@ const props = defineProps({
   }
 });
 
-// 初始化 markdown-it
+// 初始化 markdown-it 并启用表格支持
 const md = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
-  breaks: true
+  breaks: true,
+  tables: true  // 显式启用表格支持
 }).use(markdownItLinkAttributes, {
   attrs: {
     target: '_blank',
@@ -284,6 +285,24 @@ const renderedContent = computed(() => {
   .markdown-content :deep(th),
   .markdown-content :deep(td) {
     padding: var(--space-2) var(--space-3);
+  }
+}
+
+@media (max-width: 480px) {
+  /* 小屏幕表格横向滚动 */
+  .markdown-content :deep(table) {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: var(--font-size-xs);
+    margin: var(--space-4) 0;
+  }
+
+  .markdown-content :deep(th),
+  .markdown-content :deep(td) {
+    padding: var(--space-1) var(--space-2);
+    white-space: nowrap;
+    min-width: 80px;
   }
 }
 </style>
