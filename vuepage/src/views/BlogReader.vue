@@ -1603,17 +1603,26 @@ watch(() => route.query.article, async (newArticleId) => {
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
 }
 
-/* 卡片视图 - 现代化设计 */
+/* 卡片视图 - 现代化设计（紧凑优化） */
+.card-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+  padding: 0;
+}
+
 .article-nav-item {
   background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--primary-25) 100%);
   border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-xl);
-  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
   cursor: pointer;
   transition: all var(--transition-smooth);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  min-height: 140px;
+  max-height: 160px;
 }
 
 .article-nav-item::before {
@@ -1631,8 +1640,8 @@ watch(() => route.query.article, async (newArticleId) => {
 .article-nav-item:hover {
   background: linear-gradient(135deg, var(--primary-50) 0%, var(--color-bg-primary) 100%);
   border-color: var(--primary-300);
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.12);
 }
 
 .article-nav-item:hover::before {
@@ -1642,8 +1651,8 @@ watch(() => route.query.article, async (newArticleId) => {
 .article-nav-item.active {
   background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-50) 100%);
   border-color: var(--primary-400);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.18);
+  transform: translateY(-1px);
 }
 
 .article-nav-item.active::before {
@@ -1663,23 +1672,25 @@ watch(() => route.query.article, async (newArticleId) => {
 .article-nav-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   position: relative;
   z-index: 1;
+  height: 100%;
 }
 
 .article-nav-title {
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   transition: color var(--transition-normal);
+  flex-shrink: 0;
 }
 
 .article-nav-item:hover .article-nav-title {
@@ -1687,15 +1698,16 @@ watch(() => route.query.article, async (newArticleId) => {
 }
 
 .article-nav-excerpt {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   transition: color var(--transition-normal);
+  flex: 1;
 }
 
 .article-nav-item:hover .article-nav-excerpt {
@@ -1707,7 +1719,8 @@ watch(() => route.query.article, async (newArticleId) => {
   justify-content: space-between;
   align-items: center;
   font-size: var(--font-size-xs);
-  margin-top: var(--space-2);
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .article-date {
@@ -1756,20 +1769,21 @@ watch(() => route.query.article, async (newArticleId) => {
 
 .article-nav-tags {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
   flex-wrap: wrap;
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
+  flex-shrink: 0;
 }
 
 .article-nav-tag {
   background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-200) 100%);
   color: var(--primary-700);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: 9px;
+  font-weight: var(--font-weight-medium);
   border: 1px solid var(--primary-200);
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.15);
   transition: all var(--transition-normal);
 }
 
@@ -2228,8 +2242,15 @@ watch(() => route.query.article, async (newArticleId) => {
     gap: var(--space-2);
   }
 
+  .card-view {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--space-2);
+  }
+
   .article-nav-item {
-    padding: var(--space-4);
+    padding: var(--space-3);
+    min-height: 130px;
+    max-height: 150px;
   }
 }
 
@@ -2308,9 +2329,16 @@ watch(() => route.query.article, async (newArticleId) => {
   }
 
   /* 移动端卡片优化 */
+  .card-view {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--space-2);
+  }
+
   .article-nav-item {
-    padding: var(--space-4);
-    margin-bottom: var(--space-3);
+    padding: var(--space-3);
+    margin-bottom: 0;
+    min-height: 120px;
+    max-height: 140px;
   }
 
   .article-nav-title {
@@ -2326,7 +2354,7 @@ watch(() => route.query.article, async (newArticleId) => {
   .article-nav-meta {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
 
   .article-indicators {
@@ -2397,16 +2425,23 @@ watch(() => route.query.article, async (newArticleId) => {
     font-size: var(--font-size-xl);
   }
 
+  .card-view {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-2);
+  }
+
   .article-nav-item {
-    padding: var(--space-3);
+    padding: var(--space-2);
+    min-height: 100px;
+    max-height: 120px;
   }
 
   .article-nav-title {
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
   }
 
   .article-nav-excerpt {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .article-nav-tags {
@@ -2414,8 +2449,8 @@ watch(() => route.query.article, async (newArticleId) => {
   }
 
   .article-nav-tag {
-    font-size: 9px;
-    padding: var(--space-1) var(--space-2);
+    font-size: 8px;
+    padding: 1px var(--space-1);
   }
 
   .tree-folder-header {
