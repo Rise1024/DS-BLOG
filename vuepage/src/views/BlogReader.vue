@@ -721,6 +721,20 @@ const selectArticle = async (article) => {
       await nextTick(() => {
         generateAnchors()
         updateActiveHeading()
+        // 图片加载后自动补偿
+        document.querySelectorAll('.markdown-content img').forEach(img => {
+          img.onload = () => {
+            if (window.location.hash) {
+              const anchor = window.location.hash.replace('#', '');
+              scrollToHeading(anchor, { preventDefault: () => {} });
+            }
+          };
+        });
+        // 文章切换后如有hash自动滚动
+        if (window.location.hash) {
+          const anchor = window.location.hash.replace('#', '');
+          scrollToHeading(anchor, { preventDefault: () => {} });
+        }
       })
 
       // 更新URL但不导航
@@ -784,14 +798,22 @@ const updateReadingProgress = () => {
   }
 }
 
+const HEADER_OFFSET = 80; // 吸顶header高度
+
 const scrollToHeading = (anchor, event) => {
-  event.preventDefault()
-  const element = document.getElementById(anchor)
-  if (element) {
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    activeHeading.value = anchor
+  if (event && event.preventDefault) event.preventDefault();
+  // 更新URL hash（不会刷新页面）
+  if (window.location.hash !== '#' + anchor) {
+    history.replaceState(null, '', '#' + anchor);
   }
-}
+  // 精确滚动
+  const element = document.getElementById(anchor);
+  if (element) {
+    const top = element.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+    window.scrollTo({ top, behavior: 'smooth' });
+    activeHeading.value = anchor;
+  }
+};
 
 const toggleLeftSidebar = () => {
   leftSidebarCollapsed.value = !leftSidebarCollapsed.value
@@ -922,6 +944,23 @@ onMounted(() => {
 
   // 监听滚动
   window.addEventListener('scroll', handleScroll)
+
+  // 页面初次加载时，如有hash，自动滚动
+  nextTick(() => {
+    if (window.location.hash) {
+      const anchor = window.location.hash.replace('#', '');
+      scrollToHeading(anchor, { preventDefault: () => {} });
+    }
+    // 图片加载后再补偿
+    document.querySelectorAll('.markdown-content img').forEach(img => {
+      img.onload = () => {
+        if (window.location.hash) {
+          const anchor = window.location.hash.replace('#', '');
+          scrollToHeading(anchor, { preventDefault: () => {} });
+        }
+      };
+    });
+  });
 })
 
 onUnmounted(() => {
