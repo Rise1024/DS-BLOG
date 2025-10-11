@@ -732,6 +732,8 @@ const selectArticle = async (article) => {
       await nextTick(async () => {
         generateAnchors()
         updateActiveHeading()
+        // 修正图片路径（添加 serverUrl 前缀）
+        fixImagePaths()
         // 渲染 Mermaid 图表
         await renderMermaid()
         // 设置内部文章链接的点击事件
@@ -1040,6 +1042,22 @@ const setupInternalLinks = () => {
         }
       }
     });
+  });
+};
+
+// 修正图片路径，将 /api/ 开头的路径转换为完整URL
+const fixImagePaths = () => {
+  const images = document.querySelectorAll('.markdown-content img');
+  console.log(`修正 ${images.length} 个图片路径`);
+  
+  images.forEach(img => {
+    const src = img.getAttribute('src');
+    // 如果是 /api/ 开头的路径，添加 serverUrl 前缀
+    if (src && src.startsWith('/api/')) {
+      const newSrc = store.state.serverUrl + src;
+      img.setAttribute('src', newSrc);
+      console.log(`图片路径修正: ${src} -> ${newSrc}`);
+    }
   });
 };
 
