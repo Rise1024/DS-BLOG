@@ -734,6 +734,8 @@ const selectArticle = async (article) => {
         updateActiveHeading()
         // 渲染 Mermaid 图表
         await renderMermaid()
+        // 设置内部文章链接的点击事件
+        setupInternalLinks()
         // 图片加载后自动补偿
         document.querySelectorAll('.markdown-content img').forEach(img => {
           img.onload = () => {
@@ -995,6 +997,50 @@ const renderMermaid = async () => {
     console.error('Mermaid 渲染失败:', error);
     console.error('错误堆栈:', error.stack);
   }
+};
+
+// 设置内部文章链接的点击事件
+const setupInternalLinks = () => {
+  const links = document.querySelectorAll('.markdown-content .internal-article-link');
+  console.log(`找到 ${links.length} 个内部文章链接`);
+  
+  links.forEach(link => {
+    link.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const articleId = link.getAttribute('data-article-id');
+      console.log('点击内部链接，目标文章ID:', articleId);
+      
+      if (articleId) {
+        // 从文章列表中找到对应的文章
+        const targetArticle = articles.value.find(article => article.id === articleId);
+        
+        if (targetArticle) {
+          // 使用 selectArticle 加载目标文章
+          await selectArticle(targetArticle);
+          // 滚动到顶部
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          console.warn('未在当前分类中找到文章:', articleId);
+          // 可能需要切换分类，提取分类名
+          const parts = articleId.split('/');
+          if (parts.length > 1) {
+            const category = parts[0];
+            console.log('尝试加载分类:', category);
+            // 加载该分类的文章
+            await loadCategoryArticles(category);
+            // 再次查找文章
+            const targetArticle = articles.value.find(article => article.id === articleId);
+            if (targetArticle) {
+              await selectArticle(targetArticle);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              console.error('加载分类后仍未找到文章:', articleId);
+            }
+          }
+        }
+      }
+    });
+  });
 };
 
 // 切换文件夹展开状态
@@ -2180,6 +2226,32 @@ watch(() => route.query.article, async (newArticleId) => {
   background: none;
   padding: 0;
   color: var(--color-text-primary);
+}
+
+/* 内部文章链接样式 */
+.markdown-content :deep(.internal-article-link) {
+  color: var(--primary-600);
+  text-decoration: none;
+  border-bottom: 1px solid var(--primary-300);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.markdown-content :deep(.internal-article-link:hover) {
+  color: var(--primary-700);
+  border-bottom-color: var(--primary-500);
+  background-color: var(--primary-50);
+  padding: 2px 6px;
+  margin: -2px -6px;
+  border-radius: 4px;
+}
+
+.markdown-content :deep(.internal-article-link::before) {
+  content: "📄";
+  font-size: 0.9em;
 }
 
 /* 表格样式 */

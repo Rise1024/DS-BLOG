@@ -384,9 +384,10 @@ def convert_markdown_to_html(content, article_path=None):
 
     html_content = md.convert(content)
 
-    # 处理图片路径
+    # 处理图片路径和内部链接
     if article_path:
         html_content = process_image_paths(html_content, article_path)
+        html_content = process_article_links(html_content, article_path)
 
     return html_content
 
@@ -469,6 +470,48 @@ def process_image_paths(html_content, article_path):
 
     # 使用正则表达式替换所有img标签
     html_content = re.sub(r"<img[^>]*>", replace_img_src, html_content)
+
+    return html_content
+
+
+def process_article_links(html_content, article_path):
+    """处理HTML中的文章内部链接，将 .md 链接转换为前端路由链接"""
+    article_dir = os.path.dirname(article_path)
+    blog_dir = get_blog_dir()
+
+    # 匹配a标签中的href属性
+    def replace_link_href(match):
+        a_tag = match.group(0)
+        href_match = re.search(r'href="([^"]*)"', a_tag)
+        if href_match:
+            href = href_match.group(1)
+            
+            # 只处理 .md 文件链接
+            if href.endswith('.md'):
+                # 如果是外部链接，保持不变
+                if href.startswith(("http://", "https://")):
+                    return a_tag
+                
+                # 处理相对路径（包括 ./ 和 ../ 以及直接的文件名）
+                if not href.startswith(("http://", "https://", "/")):
+                    # 计算完整路径
+                    full_path = os.path.normpath(os.path.join(article_dir, href))
+                    # 计算相对于 blog_dir 的路径
+                    relative_to_blog = os.path.relpath(full_path, blog_dir)
+                    # 去掉 .md 后缀
+                    article_id = relative_to_blog.replace('.md', '').replace(os.sep, '/')
+                    
+                    # 添加 data-article-id 属性用于前端路由
+                    new_a_tag = a_tag.replace(
+                        f'href="{href}"',
+                        f'href="#" data-article-id="{article_id}" class="internal-article-link"'
+                    )
+                    return new_a_tag
+        
+        return a_tag
+
+    # 使用正则表达式替换所有a标签
+    html_content = re.sub(r"<a[^>]*>", replace_link_href, html_content)
 
     return html_content
 
