@@ -717,10 +717,23 @@ const selectArticle = async (article) => {
       // 检查收藏状态
       checkBookmarkStatus()
 
-      // 延迟生成锚点和滚动监听
-      await nextTick(() => {
+      // 更新URL但不导航
+      const newUrl = `/blog/reader/${encodeURIComponent(currentCategory.value)}?article=${encodeURIComponent(article.id)}`
+      window.history.replaceState(null, '', newUrl)
+    }
+  } catch (error) {
+    console.error('加载文章详情失败:', error)
+  } finally {
+    loading.value = false
+    
+    // 等待 loading 状态更新后再处理文章内容
+    await nextTick(async () => {
+      // 再等待一次确保 DOM 完全更新
+      await nextTick(async () => {
         generateAnchors()
         updateActiveHeading()
+        // 渲染 Mermaid 图表
+        await renderMermaid()
         // 图片加载后自动补偿
         document.querySelectorAll('.markdown-content img').forEach(img => {
           img.onload = () => {
@@ -736,15 +749,7 @@ const selectArticle = async (article) => {
           scrollToHeading(anchor, { preventDefault: () => {} });
         }
       })
-
-      // 更新URL但不导航
-      const newUrl = `/blog/reader/${encodeURIComponent(currentCategory.value)}?article=${encodeURIComponent(article.id)}`
-      window.history.replaceState(null, '', newUrl)
-    }
-  } catch (error) {
-    console.error('加载文章详情失败:', error)
-  } finally {
-    loading.value = false
+    })
   }
 }
 
@@ -891,6 +896,106 @@ const setReadingStatus = (articleId, status) => {
   readingStatus.value[articleId] = status
   localStorage.setItem('reading-status', JSON.stringify(readingStatus.value))
 }
+
+// 加载 Mermaid 库
+const loadMermaid = () => {
+  return new Promise((resolve) => {
+    if (window.mermaid) {
+      resolve();
+      return;
+    }
+    
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js';
+    script.onload = () => {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose'
+      });
+      resolve();
+    };
+    script.onerror = () => {
+      console.error('Mermaid 库加载失败');
+      resolve(); // 即使失败也 resolve，避免阻塞
+    };
+    document.head.appendChild(script);
+  });
+};
+
+// 渲染 Mermaid 图表
+const renderMermaid = async () => {
+  try {
+    await loadMermaid();
+    
+    // 等待 DOM 更新和 v-html 渲染完成
+    await nextTick();
+    
+    // 轮询等待 markdown-content 元素出现（最多等待 3 秒）
+    let markdownContent = null;
+    let attempts = 0;
+    const maxAttempts = 30; // 30 次 * 100ms = 3 秒
+    
+    while (!markdownContent && attempts < maxAttempts) {
+      markdownContent = document.querySelector('.article-body .markdown-content');
+      if (!markdownContent) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+    }
+    
+    if (!markdownContent) {
+      console.error('等待超时：未找到 .markdown-content 元素');
+      return;
+    }
+    
+    console.log(`✓ 找到 markdown-content 元素 (尝试 ${attempts + 1} 次)`);
+    
+    // 再等待一小段时间确保 v-html 内容完全渲染
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    const mermaidElements = markdownContent.querySelectorAll('.mermaid');
+    console.log('找到 Mermaid 元素:', mermaidElements.length);
+    
+    if (mermaidElements.length > 0) {
+      // 清除已渲染的图表（避免重复渲染）
+      mermaidElements.forEach((el, index) => {
+        // 检查是否已经渲染过（包含 svg 元素）
+        if (el.querySelector('svg')) {
+          console.log(`图表 ${index + 1} 已经渲染，跳过`);
+          return;
+        }
+        
+        // 保存原始代码
+        if (!el.getAttribute('data-mermaid-code')) {
+          const code = el.textContent.trim();
+          console.log(`保存图表 ${index + 1} 原始代码 (前50字符):`, code.substring(0, 50));
+          el.setAttribute('data-mermaid-code', code);
+        }
+      });
+      
+      console.log('开始渲染 Mermaid 图表...');
+      try {
+        // 使用 mermaid.init() 方法
+        await window.mermaid.init(undefined, markdownContent.querySelectorAll('.mermaid'));
+        console.log('✓ Mermaid 图表渲染成功');
+      } catch (initError) {
+        console.error('mermaid.init() 失败，尝试 mermaid.run():', initError);
+        // 如果 init 失败，尝试 run
+        await window.mermaid.run({
+          nodes: Array.from(mermaidElements)
+        });
+        console.log('✓ Mermaid 图表渲染成功 (使用 run)');
+      }
+    } else {
+      console.log('未找到 Mermaid 元素');
+      console.log('markdown-content HTML 前500字符:', markdownContent.innerHTML.substring(0, 500));
+    }
+  } catch (error) {
+    console.error('Mermaid 渲染失败:', error);
+    console.error('错误堆栈:', error.stack);
+  }
+};
 
 // 切换文件夹展开状态
 const toggleFolderGroup = (group) => {
@@ -2572,6 +2677,35 @@ watch(() => route.query.article, async (newArticleId) => {
   .markdown-content :deep(td) {
     padding: var(--space-1) var(--space-2);
     white-space: nowrap;
+  }
+}
+
+/* Mermaid 图表样式 */
+.markdown-content :deep(.mermaid) {
+  text-align: center;
+  margin: var(--space-6) 0;
+  background: var(--color-surface-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border-primary);
+  overflow-x: auto;
+}
+
+.markdown-content :deep(.mermaid svg) {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+/* 移动端 Mermaid 图表适配 */
+@media (max-width: 768px) {
+  .markdown-content :deep(.mermaid) {
+    padding: var(--space-3);
+    margin: var(--space-4) 0;
+  }
+  
+  .markdown-content :deep(.mermaid svg) {
+    font-size: 12px;
   }
 }
 

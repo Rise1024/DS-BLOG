@@ -138,6 +138,7 @@ def scan_blog_directory_lightweight():
                         "filename": item_name,
                         "file_size": file_stat.st_size,
                         "last_modified": file_mtime,
+                        "order": frontmatter.get("order", 999999),  # 默认值999999，没有order的排最后
                     }
 
                     # 生成简短摘要（仅在没有description时）
@@ -173,17 +174,24 @@ def scan_blog_directory_lightweight():
         if os.path.isdir(category_path):
             articles = scan_directory_recursively(category_path, category_name)
 
-            # 快速排序，安全处理日期类型
-            def safe_date_key(article):
+            # 排序：优先按order升序（数字小的在前），其次按date降序（新文章在前）
+            def sort_key(article):
+                order = article.get("order", 999999)
                 date_val = article.get("date", "")
                 if isinstance(date_val, str):
-                    return date_val
+                    date_str = date_val
                 elif date_val is None:
-                    return ""
+                    date_str = ""
                 else:
-                    return str(date_val)
+                    date_str = str(date_val)
+                # 返回元组：(order升序, date降序-用负号实现)
+                # 日期字符串用负号需要转换，这里用反转字符串实现降序
+                return (order, date_str)
             
-            articles.sort(key=safe_date_key, reverse=True)
+            # 先按date降序排列
+            articles.sort(key=lambda x: x.get("date", ""), reverse=True)
+            # 再按order升序排列（稳定排序会保持相同order内的date顺序）
+            articles.sort(key=lambda x: x.get("order", 999999))
             categories[category_name] = articles
 
     return categories
@@ -248,6 +256,7 @@ def scan_blog_directory():
                         "frontmatter": frontmatter,
                         "file_path": item_path,
                         "filename": item_name,
+                        "order": frontmatter.get("order", 999999),  # 默认值999999，没有order的排最后
                     }
 
                     # 生成摘要
@@ -283,17 +292,11 @@ def scan_blog_directory():
         if os.path.isdir(category_path):
             articles = scan_directory_recursively(category_path, category_name)
 
-            # 按日期排序，处理空值和类型不一致问题
-            def safe_sort_key(article):
-                date_val = article.get("date", "")
-                if isinstance(date_val, str):
-                    return date_val
-                elif date_val is None:
-                    return ""
-                else:
-                    return str(date_val)
-
-            articles.sort(key=safe_sort_key, reverse=True)
+            # 排序：优先按order升序（数字小的在前），其次按date降序（新文章在前）
+            # 先按date降序排列
+            articles.sort(key=lambda x: x.get("date", ""), reverse=True)
+            # 再按order升序排列（稳定排序会保持相同order内的date顺序）
+            articles.sort(key=lambda x: x.get("order", 999999))
             categories[category_name] = articles
 
     return categories
@@ -319,9 +322,14 @@ def get_all_articles_lightweight():
                 "updatedAt": article["updatedAt"],
                 "file_size": article.get("file_size", 0),
                 "last_modified": article.get("last_modified", ""),
+                "order": article.get("order", 999999),
             }
             all_articles.append(list_article)
 
+    # 全局排序：优先按order升序，其次按date降序
+    all_articles.sort(key=lambda x: x.get("date", ""), reverse=True)
+    all_articles.sort(key=lambda x: x.get("order", 999999))
+    
     return all_articles
 
 
@@ -341,8 +349,13 @@ def get_all_articles():
                 "category": article["category"],
                 "createdAt": article["createdAt"],
                 "updatedAt": article["updatedAt"],
+                "order": article.get("order", 999999),
             }
             all_articles.append(list_article)
+
+    # 全局排序：优先按order升序，其次按date降序
+    all_articles.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    all_articles.sort(key=lambda x: x.get("order", 999999))
 
     return all_articles
 
@@ -382,11 +395,12 @@ def process_mermaid_blocks(content):
     """处理Mermaid代码块，将其转换为HTML div"""
     import re
 
-    # 匹配 ```mermaid 代码块
-    pattern = r"```mermaid\n(.*?)\n```"
+    # 匹配 ```mermaid 代码块（更灵活的正则表达式）
+    # 支持 ```mermaid 后面可能有空格、换行符等
+    pattern = r"```mermaid\s*\n(.*?)```"
 
     def replace_mermaid(match):
-        mermaid_code = match.group(1)
+        mermaid_code = match.group(1).strip()
         # 生成唯一的ID
         import hashlib
 
