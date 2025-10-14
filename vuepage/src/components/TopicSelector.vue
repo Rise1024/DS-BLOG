@@ -199,11 +199,8 @@ const filteredTopics = computed(() => {
       filtered = filtered.filter(topic => topic.trending || topic.views > 1000)
       break
     case 'recent':
-      filtered = filtered.filter(topic => {
-        if (!topic.lastUpdated) return false
-        const daysDiff = dayjs().diff(dayjs(topic.lastUpdated), 'day')
-        return daysDiff <= 30
-      })
+      // 使用后端配置的 latest 标签
+      filtered = filtered.filter(topic => topic.latest === true)
       break
   }
 

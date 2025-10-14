@@ -634,13 +634,39 @@ def get_categories():
                     "children": children,  # 子分类信息
                     "description": f"{category_name}技术相关文章",
                     "lastUpdated": last_updated,
-                    "featured": len(articles) > 10,  # 文章数量>10的设为精选
-                    "trending": len(articles) > 5,  # 文章数量>5的设为热门
+                    "featured": False,  # 将在后面根据配置设置
+                    "trending": False,  # 将在后面根据配置设置
+                    "latest": False,    # 将在后面根据最新更新时间设置
                     "views": len(articles) * 100,  # 模拟浏览量
                     "popularTags": extract_popular_tags(articles_summary),
                 }
             )
 
+        # 根据配置设置分类标签
+        featured_categories = current_app.config.get("BLOG_FEATURED_CATEGORIES", [])
+        trending_categories = current_app.config.get("BLOG_TRENDING_CATEGORIES", [])
+        latest_count = current_app.config.get("BLOG_LATEST_COUNT", 1)
+        
+        # 设置精选和热门标签
+        for category in category_list:
+            if category["name"] in featured_categories:
+                category["featured"] = True
+            if category["name"] in trending_categories:
+                category["trending"] = True
+        
+        # 设置最新标签（按 lastUpdated 排序，取前N个）
+        categories_with_date = [c for c in category_list if c.get("lastUpdated")]
+        if categories_with_date:
+            # 按最后更新时间降序排序
+            categories_with_date.sort(key=lambda x: x["lastUpdated"], reverse=True)
+            # 标记前N个为最新
+            for i in range(min(latest_count, len(categories_with_date))):
+                # 在原列表中找到并标记
+                for category in category_list:
+                    if category["name"] == categories_with_date[i]["name"]:
+                        category["latest"] = True
+                        break
+        
         # 设置缓存（延长缓存时间）
         cache.set_categories(category_list)
 
@@ -687,14 +713,52 @@ def get_categories_summary():
                             rel_path = os.path.relpath(root, category_path)
                             subcategories.add(rel_path.split(os.sep)[0])
                     
+                    # 获取最后修改时间
+                    latest_mtime = 0
+                    for root_walk, dirs_walk, files_walk in os.walk(category_path):
+                        for f in files_walk:
+                            if f.endswith('.md'):
+                                try:
+                                    mtime = os.path.getmtime(os.path.join(root_walk, f))
+                                    latest_mtime = max(latest_mtime, mtime)
+                                except OSError:
+                                    pass
+                    
+                    last_updated = None
+                    if latest_mtime > 0:
+                        last_updated = datetime.fromtimestamp(latest_mtime).strftime('%Y-%m-%d')
+                    
                     summary_list.append({
                         "name": category_name,
                         "count": total_files,
                         "subcategory_count": len(subcategories),
                         "description": f"{category_name}技术相关文章",
-                        "featured": total_files > 10,
-                        "trending": total_files > 5,
+                        "lastUpdated": last_updated,
+                        "featured": False,
+                        "trending": False,
+                        "latest": False,
                     })
+        
+        # 根据配置设置分类标签
+        featured_categories = current_app.config.get("BLOG_FEATURED_CATEGORIES", [])
+        trending_categories = current_app.config.get("BLOG_TRENDING_CATEGORIES", [])
+        latest_count = current_app.config.get("BLOG_LATEST_COUNT", 1)
+        
+        for category in summary_list:
+            if category["name"] in featured_categories:
+                category["featured"] = True
+            if category["name"] in trending_categories:
+                category["trending"] = True
+        
+        # 设置最新标签
+        categories_with_date = [c for c in summary_list if c.get("lastUpdated")]
+        if categories_with_date:
+            categories_with_date.sort(key=lambda x: x["lastUpdated"], reverse=True)
+            for i in range(min(latest_count, len(categories_with_date))):
+                for category in summary_list:
+                    if category["name"] == categories_with_date[i]["name"]:
+                        category["latest"] = True
+                        break
         
         # 设置短时间缓存
         cache.set(cache_key, summary_list, 300)  # 5分钟缓存

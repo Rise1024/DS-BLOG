@@ -4,7 +4,7 @@ import axios from 'axios';
 const store = createStore({
   state() {
     return {
-      serverUrl: 'http://localhost',
+      serverUrl: 'http://localhost/rssmd',
       // serverUrl: 'https://dongsheng.online/rssmd',
       // 临时存储从RSS传递到Editor的markdown内容
       tempMarkdownContent: ''

@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost',
+        target: 'http://localhost/rssmd',
         // target: 'https://dongsheng.online/rssmd',
         changeOrigin: true,
         secure: false

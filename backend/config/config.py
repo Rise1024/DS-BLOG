@@ -71,6 +71,11 @@ class Config:
 
     # 博客配置
     BLOG_DIR = os.environ.get("BLOG_DIR") or "/Users/ht/IdeaProjects/ME/Java-Labs/blog"
+    
+    # 博客分类标签配置
+    BLOG_FEATURED_CATEGORIES = os.environ.get("BLOG_FEATURED_CATEGORIES", "Java面试知识大全,Spring").split(",")  # 精选分类
+    BLOG_TRENDING_CATEGORIES = os.environ.get("BLOG_TRENDING_CATEGORIES", "Java面试知识大全,Spring,实用工具技巧").split(",")  # 热门分类
+    BLOG_LATEST_COUNT = int(os.environ.get("BLOG_LATEST_COUNT", 1))  # 最新分类显示数量（默认1个）
 
     # 图片输出配置
     OUTPUT_IMAGES_DIR = os.environ.get("OUTPUT_IMAGES_DIR") or "output_images/mdTpng"
