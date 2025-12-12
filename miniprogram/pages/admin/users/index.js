@@ -25,7 +25,7 @@ Page({
         const token = wx.getStorageSync('token');
 
         wx.request({
-            url: `${app.globalData.serverUrl}/api/users`,
+            url: `${app.globalData.serverUrl}/api/v1/admin/users?user_type=wechat`,
             method: 'GET',
             header: {
                 'Authorization': token
@@ -63,7 +63,7 @@ Page({
         const token = wx.getStorageSync('token');
 
         wx.request({
-            url: `${app.globalData.serverUrl}/api/user/role`,
+            url: `${app.globalData.serverUrl}/api/v1/admin/users/${userId}/role`,
             method: 'PUT',
             header: {
                 'Authorization': token

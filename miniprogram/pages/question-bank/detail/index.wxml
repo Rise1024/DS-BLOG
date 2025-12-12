@@ -1,0 +1,102 @@
+<view class="container">
+  <!-- 加载中 -->
+  <view wx:if="{{isLoading}}" class="loading">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+
+  <!-- 题目内容 -->
+  <view wx:elif="{{question}}" class="question-content">
+    <!-- 题目头部 -->
+    <view class="question-header">
+      <view class="question-meta">
+        <text class="question-type">{{question.type === 'short_answer' ? '简答题' : '编程题'}}</text>
+        <text class="difficulty">{{question.difficulty}}⭐</text>
+        <view class="question-tags">
+          <text wx:for="{{question.tags}}" wx:key="*this" wx:for-item="tag" class="tag">{{tag}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 题目内容 -->
+    <view class="question-body">
+      <view class="question-title">{{question.title}}</view>
+      
+      <view class="question-content-text">
+        <towxml wx:if="{{question.contentNodes}}" nodes="{{question.contentNodes}}" />
+        <text wx:else>{{question.content}}</text>
+      </view>
+
+      <!-- 答案区域 -->
+      <view class="answer-section">
+        <view class="answer-header">
+          <text class="answer-title">答案</text>
+          <button class="btn-toggle" bindtap="toggleAnswer">
+            {{showAnswer ? '隐藏答案' : '显示答案'}}
+          </button>
+        </view>
+        
+        <view wx:if="{{showAnswer}}" class="answer-content">
+          <towxml wx:if="{{question.answerNodes}}" nodes="{{question.answerNodes}}" />
+          <text wx:else>{{question.answer}}</text>
+          
+          <view wx:if="{{question.explanation}}" class="explanation">
+            <text class="explanation-title">解析</text>
+            <towxml wx:if="{{question.explanationNodes}}" nodes="{{question.explanationNodes}}" />
+            <text wx:else>{{question.explanation}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 相关文章 -->
+      <view wx:if="{{question.related_articles && question.related_articles.length > 0}}" class="related-articles">
+        <text class="section-title">相关文章</text>
+        <view class="articles-list">
+          <view 
+            wx:for="{{question.related_articles}}" 
+            wx:key="id"
+            class="article-item"
+            bindtap="goToArticle"
+            data-id="{{item.id}}"
+          >
+            <text class="article-title">{{item.title}}</text>
+            <icon type="arrowright" size="16" color="#999"></icon>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 操作栏 -->
+    <view class="question-actions">
+      <button 
+        class="btn-nav"
+        bindtap="goToPrev"
+        disabled="{{!question.navigation.prev}}"
+      >
+        上一题
+      </button>
+
+      <button 
+        wx:if="{{isLoggedIn}}"
+        class="btn-favorite {{isFavorited ? 'favorited' : ''}}"
+        bindtap="toggleFavorite"
+      >
+        {{isFavorited ? '已收藏' : '收藏'}}
+      </button>
+
+      <button 
+        class="btn-nav"
+        bindtap="goToNext"
+        disabled="{{!question.navigation.next}}"
+      >
+        下一题
+      </button>
+    </view>
+  </view>
+
+  <!-- 错误状态 -->
+  <view wx:else class="error-state">
+    <text>题目不存在</text>
+  </view>
+</view>
+

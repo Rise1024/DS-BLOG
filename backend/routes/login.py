@@ -3,7 +3,7 @@ from auth.extensions import wx_auth
 from config.config import logger
 
 # 创建蓝图
-login_bp = Blueprint("login", __name__)
+login_bp = Blueprint("login", __name__, url_prefix="/api/v1")
 
 
 @login_bp.route("/login", methods=["POST"])

@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from flask import current_app
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("rss_app")
+
 
 class BlogCache:
     """博客缓存管理器"""
@@ -29,12 +30,13 @@ class BlogCache:
             # 尝试连接Redis，如果失败则使用空实现
             try:
                 self.redis_client = redis.Redis(
-                    host=current_app.config.get('REDIS_HOST', 'localhost'),
-                    port=current_app.config.get('REDIS_PORT', 6379),
-                    db=current_app.config.get('REDIS_DB', 0),
+                    host=current_app.config.get("REDIS_HOST", "localhost"),
+                    port=current_app.config.get("REDIS_PORT", 6379),
+                    db=current_app.config.get("REDIS_DB", 0),
+                    password=current_app.config.get("REDIS_PASSWORD", None),
                     decode_responses=True,
                     socket_timeout=5,
-                    socket_connect_timeout=5
+                    socket_connect_timeout=5,
                 )
                 # 测试连接
                 self.redis_client.ping()
@@ -48,10 +50,12 @@ class BlogCache:
 
         # 缓存时间配置（秒）
         self.cache_ttl = {
-            'categories': 3600,      # 分类列表缓存1小时
-            'articles': 1800,        # 文章列表缓存30分钟
-            'article_detail': 7200,  # 文章详情缓存2小时
-            'article_html': 14400,   # 文章HTML缓存4小时
+            "categories": 7200,  # 分类列表缓存2小时（已优化，可延长）
+            "articles": 7200,  # 文章列表缓存2小时（已优化）
+            "article_detail": 14400,  # 文章详情缓存4小时
+            "article_html": 28800,  # 文章HTML缓存8小时
+            "directory_scan": 3600,  # 目录扫描缓存1小时
+            "articles_summary": 1800,  # 文章摘要缓存30分钟
         }
 
     def _get_cache_key(self, category: str, *args) -> str:
@@ -167,7 +171,7 @@ class BlogCache:
         Returns:
             List[Dict]: 分类列表，如果缓存不存在则返回None
         """
-        key = self._get_cache_key('categories')
+        key = self._get_cache_key("categories")
         return self.get(key)
 
     def set_categories(self, categories: List[Dict[str, Any]]) -> bool:
@@ -180,10 +184,12 @@ class BlogCache:
         Returns:
             bool: 是否设置成功
         """
-        key = self._get_cache_key('categories')
-        return self.set(key, categories, self.cache_ttl['categories'])
+        key = self._get_cache_key("categories")
+        return self.set(key, categories, self.cache_ttl["categories"])
 
-    def get_articles(self, category: str = '', search: str = '') -> Optional[List[Dict[str, Any]]]:
+    def get_articles(
+        self, category: str = "", search: str = ""
+    ) -> Optional[List[Dict[str, Any]]]:
         """
         获取文章列表缓存
 
@@ -194,10 +200,12 @@ class BlogCache:
         Returns:
             List[Dict]: 文章列表，如果缓存不存在则返回None
         """
-        key = self._get_cache_key('articles', category, search)
+        key = self._get_cache_key("articles", category, search)
         return self.get(key)
 
-    def set_articles(self, articles: List[Dict[str, Any]], category: str = '', search: str = '') -> bool:
+    def set_articles(
+        self, articles: List[Dict[str, Any]], category: str = "", search: str = ""
+    ) -> bool:
         """
         设置文章列表缓存
 
@@ -209,8 +217,8 @@ class BlogCache:
         Returns:
             bool: 是否设置成功
         """
-        key = self._get_cache_key('articles', category, search)
-        return self.set(key, articles, self.cache_ttl['articles'])
+        key = self._get_cache_key("articles", category, search)
+        return self.set(key, articles, self.cache_ttl["articles"])
 
     def get_article(self, article_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -222,7 +230,7 @@ class BlogCache:
         Returns:
             Dict: 文章详情，如果缓存不存在则返回None
         """
-        key = self._get_cache_key('article_detail', article_id)
+        key = self._get_cache_key("article_detail", article_id)
         return self.get(key)
 
     def set_article(self, article_id: str, article: Dict[str, Any]) -> bool:
@@ -236,10 +244,12 @@ class BlogCache:
         Returns:
             bool: 是否设置成功
         """
-        key = self._get_cache_key('article_detail', article_id)
-        return self.set(key, article, self.cache_ttl['article_detail'])
+        key = self._get_cache_key("article_detail", article_id)
+        return self.set(key, article, self.cache_ttl["article_detail"])
 
-    def get_article_html(self, article_id: str, content_hash: str = '') -> Optional[str]:
+    def get_article_html(
+        self, article_id: str, content_hash: str = ""
+    ) -> Optional[str]:
         """
         获取文章HTML缓存
 
@@ -250,10 +260,12 @@ class BlogCache:
         Returns:
             str: HTML内容，如果缓存不存在则返回None
         """
-        key = self._get_cache_key('article_html', article_id, content_hash)
+        key = self._get_cache_key("article_html", article_id, content_hash)
         return self.get(key)
 
-    def set_article_html(self, article_id: str, html_content: str, content_hash: str = '') -> bool:
+    def set_article_html(
+        self, article_id: str, html_content: str, content_hash: str = ""
+    ) -> bool:
         """
         设置文章HTML缓存
 
@@ -265,8 +277,8 @@ class BlogCache:
         Returns:
             bool: 是否设置成功
         """
-        key = self._get_cache_key('article_html', article_id, content_hash)
-        return self.set(key, html_content, self.cache_ttl['article_html'])
+        key = self._get_cache_key("article_html", article_id, content_hash)
+        return self.set(key, html_content, self.cache_ttl["article_html"])
 
     def invalidate_article_cache(self, article_id: str) -> int:
         """
@@ -290,7 +302,7 @@ class BlogCache:
 
         return count
 
-    def invalidate_category_cache(self, category: str = '') -> int:
+    def invalidate_category_cache(self, category: str = "") -> int:
         """
         失效分类相关的所有缓存
 
@@ -308,7 +320,7 @@ class BlogCache:
             count += self.delete_pattern(articles_pattern)
         else:
             # 删除所有分类和文章列表缓存
-            categories_key = self._get_cache_key('categories')
+            categories_key = self._get_cache_key("categories")
             count += int(self.delete(categories_key))
 
             articles_pattern = f"{self.prefix}articles:*"
@@ -334,10 +346,7 @@ class BlogCache:
             Dict: 缓存统计信息
         """
         if not self.redis_client:
-            return {
-                'available': False,
-                'message': 'Redis不可用'
-            }
+            return {"available": False, "message": "Redis不可用"}
 
         try:
             info = self.redis_client.info()
@@ -346,21 +355,20 @@ class BlogCache:
             blog_keys = self.redis_client.keys(f"{self.prefix}*")
 
             return {
-                'available': True,
-                'redis_version': info.get('redis_version'),
-                'used_memory_human': info.get('used_memory_human'),
-                'connected_clients': info.get('connected_clients'),
-                'blog_cache_keys': len(blog_keys),
-                'cache_ttl_config': self.cache_ttl
+                "available": True,
+                "redis_version": info.get("redis_version"),
+                "used_memory_human": info.get("used_memory_human"),
+                "connected_clients": info.get("connected_clients"),
+                "blog_cache_keys": len(blog_keys),
+                "cache_ttl_config": self.cache_ttl,
             }
         except Exception as e:
             logger.error(f"获取缓存统计失败: {e}")
-            return {
-                'available': False,
-                'message': f'获取统计信息失败: {e}'
-            }
+            return {"available": False, "message": f"获取统计信息失败: {e}"}
 
-    def warm_up_cache(self, scan_blog_directory_func, get_all_articles_func) -> Dict[str, Any]:
+    def warm_up_cache(
+        self, scan_blog_directory_func, get_all_articles_func
+    ) -> Dict[str, Any]:
         """
         预热缓存
 
@@ -372,10 +380,7 @@ class BlogCache:
             Dict: 预热结果
         """
         if not self.redis_client:
-            return {
-                'success': False,
-                'message': 'Redis不可用'
-            }
+            return {"success": False, "message": "Redis不可用"}
 
         try:
             start_time = datetime.now()
@@ -383,11 +388,7 @@ class BlogCache:
             # 预热分类缓存
             categories = scan_blog_directory_func()
             category_list = [
-                {
-                    'name': name,
-                    'count': len(articles),
-                    'articles': articles
-                }
+                {"name": name, "count": len(articles), "articles": articles}
                 for name, articles in categories.items()
             ]
             self.set_categories(category_list)
@@ -405,22 +406,21 @@ class BlogCache:
             duration = (end_time - start_time).total_seconds()
 
             return {
-                'success': True,
-                'message': '缓存预热完成',
-                'duration_seconds': duration,
-                'categories_count': len(category_list),
-                'articles_count': len(all_articles)
+                "success": True,
+                "message": "缓存预热完成",
+                "duration_seconds": duration,
+                "categories_count": len(category_list),
+                "articles_count": len(all_articles),
             }
 
         except Exception as e:
             logger.error(f"缓存预热失败: {e}")
-            return {
-                'success': False,
-                'message': f'缓存预热失败: {e}'
-            }
+            return {"success": False, "message": f"缓存预热失败: {e}"}
+
 
 # 全局缓存实例
 cache = None
+
 
 def init_cache(app=None):
     """
@@ -438,6 +438,7 @@ def init_cache(app=None):
         cache = BlogCache()
 
     return cache
+
 
 def get_cache() -> BlogCache:
     """

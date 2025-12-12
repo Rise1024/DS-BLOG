@@ -8,6 +8,7 @@
     "table": "/towxml/table/table",
     "todogroup": "/towxml/todogroup/todogroup",
     "yuml": "/towxml/yuml/yuml",
-    "img": "/towxml/img/img"
+    "img": "/towxml/img/img",
+    "mermaid": "/towxml/mermaid/mermaid"
   }
 }

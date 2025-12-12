@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, watch, nextTick, onMounted } from 'vue';
 import MarkdownIt from 'markdown-it';
 import markdownItLinkAttributes from 'markdown-it-link-attributes';
 
@@ -16,12 +16,13 @@ const props = defineProps({
   }
 });
 
-// 初始化 markdown-it
+// 初始化 markdown-it 并启用表格支持
 const md = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
-  breaks: true
+  breaks: true,
+  tables: true  // 显式启用表格支持
 }).use(markdownItLinkAttributes, {
   attrs: {
     target: '_blank',
@@ -29,9 +30,121 @@ const md = new MarkdownIt({
   }
 });
 
+// 自定义 fence 渲染规则以支持 Mermaid
+md.renderer.rules.fence = (tokens, idx, options, env, slf) => {
+  const token = tokens[idx];
+  const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
+  const langName = info ? info.split(/\s+/g)[0] : '';
+  
+  // 如果是 mermaid 代码块，生成特殊的 div
+  if (langName === 'mermaid') {
+    const code = token.content.trim();
+    return `<div class="mermaid">${code}</div>\n`;
+  }
+  
+  // 其他代码块使用默认渲染
+  const langClass = langName ? ` class="language-${md.utils.escapeHtml(langName)}"` : '';
+  return `<pre><code${langClass}>${md.utils.escapeHtml(token.content)}</code></pre>\n`;
+};
+
 const renderedContent = computed(() => {
   if (!props.content) return '';
   return md.render(props.content);
+});
+
+// 加载 Mermaid 库
+const loadMermaid = () => {
+  return new Promise((resolve) => {
+    if (window.mermaid) {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose'
+      });
+      resolve();
+      return;
+    }
+    
+    // 检查是否已经在加载中
+    if (document.querySelector('script[data-mermaid]')) {
+      // 如果正在加载，等待加载完成
+      const checkMermaid = () => {
+        if (window.mermaid) {
+          window.mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose'
+          });
+          resolve();
+        } else {
+          setTimeout(checkMermaid, 100);
+        }
+      };
+      checkMermaid();
+      return;
+    }
+    
+    // 创建 script 标签加载本地文件
+    const script = document.createElement('script');
+    script.src = '/mermaid.min.js';
+    script.setAttribute('data-mermaid', 'true');
+    script.onload = () => {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose'
+      });
+      resolve();
+    };
+    script.onerror = () => {
+      console.error('Mermaid 库加载失败');
+      resolve();
+    };
+    document.head.appendChild(script);
+  });
+};
+
+// 渲染 Mermaid 图表
+const renderMermaid = async () => {
+  await loadMermaid();
+  await nextTick();
+  
+  const mermaidElements = document.querySelectorAll('.markdown-viewer .mermaid');
+  if (mermaidElements.length > 0) {
+    try {
+      // 清除已渲染的图表
+      mermaidElements.forEach(el => {
+        if (el.getAttribute('data-processed')) {
+          el.removeAttribute('data-processed');
+          const code = el.getAttribute('data-mermaid-code');
+          if (code) {
+            el.textContent = code;
+          }
+        } else {
+          el.setAttribute('data-mermaid-code', el.textContent);
+        }
+      });
+      
+      await window.mermaid.run({
+        querySelector: '.markdown-viewer .mermaid'
+      });
+    } catch (error) {
+      console.error('Mermaid 渲染失败:', error);
+    }
+  }
+};
+
+// 监听内容变化，重新渲染 Mermaid
+watch(() => props.content, async () => {
+  await nextTick();
+  renderMermaid();
+}, { immediate: false });
+
+// 组件挂载时渲染 Mermaid
+onMounted(() => {
+  nextTick(() => {
+    renderMermaid();
+  });
 });
 </script>
 
@@ -284,6 +397,53 @@ const renderedContent = computed(() => {
   .markdown-content :deep(th),
   .markdown-content :deep(td) {
     padding: var(--space-2) var(--space-3);
+  }
+}
+
+@media (max-width: 480px) {
+  /* 小屏幕表格横向滚动 */
+  .markdown-content :deep(table) {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: var(--font-size-xs);
+    margin: var(--space-4) 0;
+  }
+
+  .markdown-content :deep(th),
+  .markdown-content :deep(td) {
+    padding: var(--space-1) var(--space-2);
+    white-space: nowrap;
+    min-width: 80px;
+  }
+}
+
+/* Mermaid 图表样式 */
+.markdown-content :deep(.mermaid) {
+  text-align: center;
+  margin: var(--space-6) 0;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border-primary);
+  overflow-x: auto;
+}
+
+.markdown-content :deep(.mermaid svg) {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+/* 移动端 Mermaid 图表适配 */
+@media (max-width: 768px) {
+  .markdown-content :deep(.mermaid) {
+    padding: var(--space-3);
+    margin: var(--space-4) 0;
+  }
+  
+  .markdown-content :deep(.mermaid svg) {
+    font-size: 12px;
   }
 }
 </style>

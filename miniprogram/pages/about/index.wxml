@@ -2,15 +2,15 @@
   <view class="about-card">
     <view class="app-info">
       <image class="app-logo" src="/images/default-avatar.png" mode="aspectFit" />
-      <text class="app-name">RSS大师</text>
+      <text class="app-name">学习助手</text>
       <text class="app-version">版本 1.0.0</text>
     </view>
 
     <view class="section">
       <view class="section-title">功能介绍</view>
       <view class="section-content">
-        <text class="feature-text">• AI赋能RSS</text>
-        <text class="feature-text">• 帮助你订阅最新信息</text>
+        <text class="feature-text">• 知识题库</text>
+        <text class="feature-text">• 文章阅读</text>
         <text class="feature-text">• 更多功能完善中.....</text>
       </view>
     </view>
@@ -19,7 +19,7 @@
       <view class="section-title">开发团队</view>
       <view class="section-content">
         <text class="team-text">由一群热爱技术的开发者精心打造</text>
-        <text class="team-text">致力于AI为创作者赋能</text>
+        <text class="team-text">致力于强大知识库</text>
       </view>
     </view>
 

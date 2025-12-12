@@ -47,8 +47,5 @@ settings.local.json
 coverage/
 
 # 构建产物
-dist/
-build/
 out/
-
-.DS_Store
+backend/data/

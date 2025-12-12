@@ -1,0 +1,49 @@
+<view class="tree-node {{isRoot ? 'is-root' : ''}}">
+  <view 
+    class="node-header {{hasChildren || hasItems ? 'has-children clickable' : ''}}"
+    bindtap="onNodeClick"
+  >
+    <!-- 展开/折叠图标 -->
+    <view wx:if="{{hasChildren || hasItems}}" class="toggle-icon">
+      <text>{{expanded ? '▼' : '▶'}}</text>
+    </view>
+    <!-- 叶子节点图标 -->
+    <view wx:else class="leaf-icon">
+      <text>📁</text>
+    </view>
+    
+    <text class="node-title">{{node.title || node.name}}</text>
+    
+    <text wx:if="{{nodeCount}}" class="node-count">{{nodeCount}}</text>
+  </view>
+
+  <!-- 子节点 -->
+  <view wx:if="{{expanded && hasChildren}}" class="node-children">
+    <tree-node
+      wx:for="{{node.children}}"
+      wx:key="id"
+      wx:for-item="child"
+      node="{{child}}"
+      path="{{path}}"
+      is-root="{{false}}"
+      bind:nodeclick="onChildNodeClick"
+      bind:itemclick="onChildItemClick"
+    />
+  </view>
+
+  <!-- 项目列表（文章/题目） -->
+  <view wx:if="{{expanded && hasItems}}" class="node-items">
+    <view
+      wx:for="{{node.items}}"
+      wx:key="id"
+      wx:for-item="item"
+      class="item"
+      bindtap="onItemClick"
+      data-item="{{item}}"
+    >
+      <view class="item-icon">📄</view>
+      <text class="item-title">{{item.title}}</text>
+    </view>
+  </view>
+</view>
+

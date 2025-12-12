@@ -123,9 +123,21 @@
   --z-tooltip: 1070;
 }
 
-/* 暗色主题 */
+/* 暗色主题 - 基于 class */
+:root.dark {
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #d1d5db;
+  --color-text-muted: #9ca3af;
+  --color-bg-primary: #111827;
+  --color-bg-secondary: #1f2937;
+  --color-bg-muted: #374151;
+  --color-border-primary: #374151;
+  --color-border-secondary: #4b5563;
+}
+
+/* 系统偏好暗色模式（仅在未手动设置时生效） */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light):not(.dark) {
     --color-text-primary: #f9fafb;
     --color-text-secondary: #d1d5db;
     --color-text-muted: #9ca3af;

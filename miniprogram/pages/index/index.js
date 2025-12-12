@@ -48,7 +48,7 @@ Page({
             const app = getApp();
             // 发送code到开发者服务器
             wx.request({
-              url: `${app.globalData.serverUrl}/login`,
+              url: `${app.globalData.serverUrl}/api/v1/login`,
               method: 'POST',
               data: {
                 code: res.code,
@@ -138,36 +138,14 @@ Page({
       duration: 2000
     });
   },
-  // 导航到历史记录页面
-  navigateToHistory() {
+  // 导航到我的收藏页面
+  navigateToFavorites() {
     if (!this.data.userInfo) {
       this.handleShowLoginModal();
       return;
     }
     wx.navigateTo({
-      url: '/pages/history/index'
-    });
-  },
-
-  // 导航到我的模板页面
-  navigateToTemplates() {
-    if (!this.data.userInfo) {
-      this.handleShowLoginModal();
-      return;
-    }
-    wx.navigateTo({
-      url: '/pages/templates/index'
-    });
-  },
-
-  // 导航到主题设置页面
-  navigateToTheme() {
-    if (!this.data.userInfo) {
-      this.handleShowLoginModal();
-      return;
-    }
-    wx.navigateTo({
-      url: '/pages/theme/index'
+      url: '/pages/favorites/index'
     });
   },
 

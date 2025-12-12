@@ -1,0 +1,57 @@
+<view class="container">
+  <!-- 加载中 -->
+  <view wx:if="{{isLoading && favorites.length === 0}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:elif="{{isEmpty}}" class="empty-container">
+    <text class="empty-icon">⭐</text>
+    <text class="empty-text">还没有收藏的题目</text>
+    <text class="empty-desc">去题库收藏一些题目吧</text>
+  </view>
+
+  <!-- 收藏列表 -->
+  <view wx:else class="favorites-list">
+    <view 
+      wx:for="{{favorites}}" 
+      wx:key="id"
+      class="favorite-item"
+      bindtap="goToQuestion"
+      data-id="{{item.id}}"
+    >
+      <view class="question-header">
+        <view class="question-meta">
+          <text class="question-type">{{item.type === 'short_answer' ? '简答题' : '编程题'}}</text>
+          <text class="difficulty">{{item.difficulty}}⭐</text>
+        </view>
+        <text class="favorite-time">{{item.favorited_at}}</text>
+      </view>
+      
+      <view class="question-title">{{item.title}}</view>
+      
+      <view wx:if="{{item.tags && item.tags.length}}" class="question-tags">
+        <text 
+          wx:for="{{item.tags}}" 
+          wx:for-item="tag"
+          wx:key="*this"
+          class="tag"
+        >
+          {{tag}}
+        </text>
+      </view>
+    </view>
+
+    <!-- 加载更多 -->
+    <view wx:if="{{isLoading && favorites.length > 0}}" class="loading-more">
+      <text>加载中...</text>
+    </view>
+
+    <!-- 没有更多 -->
+    <view wx:if="{{!hasMore && favorites.length > 0}}" class="no-more">
+      <text>没有更多了</text>
+    </view>
+  </view>
+</view>
+

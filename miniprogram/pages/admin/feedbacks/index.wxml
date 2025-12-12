@@ -1,0 +1,109 @@
+<view class="container">
+  <!-- 状态筛选 -->
+  <view class="filter-bar">
+    <view 
+      class="filter-item {{statusFilter === 'all' ? 'active' : ''}}"
+      bindtap="onStatusFilterChange"
+      data-status="all"
+    >
+      全部
+    </view>
+    <view 
+      class="filter-item {{statusFilter === 'pending' ? 'active' : ''}}"
+      bindtap="onStatusFilterChange"
+      data-status="pending"
+    >
+      待处理
+    </view>
+    <view 
+      class="filter-item {{statusFilter === 'processed' ? 'active' : ''}}"
+      bindtap="onStatusFilterChange"
+      data-status="processed"
+    >
+      已处理
+    </view>
+    <view 
+      class="filter-item {{statusFilter === 'closed' ? 'active' : ''}}"
+      bindtap="onStatusFilterChange"
+      data-status="closed"
+    >
+      已关闭
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{isLoading && feedbacks.length === 0}}" class="loading">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+
+  <!-- 反馈列表 -->
+  <view wx:else class="feedback-list">
+    <view 
+      wx:for="{{feedbacks}}" 
+      wx:key="id"
+      class="feedback-item"
+    >
+      <view class="feedback-header">
+        <view class="feedback-user">
+          <text class="user-name">{{item.user_nickname || '匿名用户'}}</text>
+          <text class="feedback-time">{{item.created_at}}</text>
+        </view>
+        <view 
+          class="status-badge"
+          style="background-color: {{getStatusColor(item.status)}}20; color: {{getStatusColor(item.status)}}"
+        >
+          {{getStatusText(item.status)}}
+        </view>
+      </view>
+
+      <view class="feedback-content">
+        {{item.content}}
+      </view>
+
+      <view wx:if="{{item.contact}}" class="feedback-contact">
+        <text class="contact-label">联系方式：</text>
+        <text class="contact-value">{{item.contact}}</text>
+      </view>
+
+      <view wx:if="{{item.processed_at}}" class="processed-time">
+        处理时间：{{item.processed_at}}
+      </view>
+
+      <!-- 操作按钮 -->
+      <view wx:if="{{item.status === 'pending'}}" class="feedback-actions">
+        <button 
+          class="action-btn process-btn"
+          bindtap="markAsProcessed"
+          data-id="{{item.id}}"
+        >
+          标记为已处理
+        </button>
+        <button 
+          class="action-btn close-btn"
+          bindtap="markAsClosed"
+          data-id="{{item.id}}"
+        >
+          关闭
+        </button>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:if="{{feedbacks.length === 0 && !isLoading}}" class="empty-state">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无反馈</text>
+    </view>
+
+    <!-- 加载更多 -->
+    <view wx:if="{{isLoading && feedbacks.length > 0}}" class="loading-more">
+      <view class="loading-spinner"></view>
+      <text>加载中...</text>
+    </view>
+
+    <view wx:if="{{!hasMore && feedbacks.length > 0}}" class="no-more">
+      没有更多了
+    </view>
+  </view>
+</view>
+

@@ -49,6 +49,30 @@
           <div v-html="article.html_content" class="markdown-content"></div>
         </div>
 
+        <!-- 相关题目 -->
+        <div v-if="article.related_questions && article.related_questions.length > 0" class="related-questions">
+          <h3 class="related-title">相关题目</h3>
+          <div class="questions-grid">
+            <router-link 
+              v-for="question in article.related_questions" 
+              :key="question.id"
+              :to="`/question-bank/question/${question.id}`"
+              class="question-card"
+            >
+              <div class="question-card-header">
+                <span class="question-type">{{ question.type === 'short_answer' ? '简答题' : '编程题' }}</span>
+                <span class="difficulty" :class="`difficulty-${question.difficulty}`">
+                  {{ '⭐'.repeat(question.difficulty) }}
+                </span>
+              </div>
+              <h4 class="question-card-title">{{ question.title }}</h4>
+              <div class="question-card-tags">
+                <span v-for="tag in question.tags" :key="tag" class="tag">{{ tag }}</span>
+              </div>
+            </router-link>
+          </div>
+        </div>
+
         <!-- 文章底部 -->
         <footer class="article-footer">
           <div class="article-navigation">
@@ -130,7 +154,7 @@ const activeHeading = ref('');
 const loadArticle = async (id) => {
   loading.value = true;
   try {
-    const response = await axios.get(`${store.state.serverUrl}/api/blog/articles/${encodeURIComponent(id)}`);
+    const response = await axios.get(`${store.state.serverUrl}/api/v1/blog/articles/${id}`);
     
     if (response.data?.success) {
       article.value = response.data.data;
@@ -222,18 +246,48 @@ const handleScroll = () => {
 const loadMermaid = () => {
   return new Promise((resolve) => {
     if (window.mermaid) {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose'
+      });
       resolve();
       return;
     }
     
+    // 检查是否已经在加载中
+    if (document.querySelector('script[data-mermaid]')) {
+      // 如果正在加载，等待加载完成
+      const checkMermaid = () => {
+        if (window.mermaid) {
+          window.mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose'
+          });
+          resolve();
+        } else {
+          setTimeout(checkMermaid, 100);
+        }
+      };
+      checkMermaid();
+      return;
+    }
+    
+    // 创建 script 标签加载本地文件
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js';
+    script.src = '/mermaid.min.js';
+    script.setAttribute('data-mermaid', 'true');
     script.onload = () => {
       window.mermaid.initialize({
         startOnLoad: false,
         theme: 'default',
         securityLevel: 'loose'
       });
+      resolve();
+    };
+    script.onerror = () => {
+      console.error('Mermaid 库加载失败');
       resolve();
     };
     document.head.appendChild(script);
@@ -892,6 +946,97 @@ onUnmounted(() => {
   
   .outline-mobile-toggle {
     padding: var(--space-3);
+  }
+}
+
+/* 相关题目样式 */
+.related-questions {
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
+  border-top: 2px solid var(--color-border-primary);
+}
+
+.related-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-6) 0;
+}
+
+.questions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.question-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  text-decoration: none;
+  color: inherit;
+  transition: all var(--transition-normal);
+  display: block;
+}
+
+.question-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-300);
+  background: var(--primary-50);
+}
+
+.question-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.question-type {
+  background: var(--primary-100);
+  color: var(--primary-700);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.difficulty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.question-card-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-3) 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.question-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tag {
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 768px) {
+  .questions-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

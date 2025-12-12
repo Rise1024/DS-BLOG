@@ -4,30 +4,77 @@
   min-height: 100vh;
 }
 
-.admin-header {
+.login-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48rpx 0;
+}
+
+.avatar-wrapper {
+  width: 160rpx;
+  height: 160rpx;
   margin-bottom: 32rpx;
-  padding: 24rpx;
-  background: #1a237e;
-  border-radius: 16rpx;
 }
 
-.admin-title {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: white;
+.default-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #e9ecef;
 }
 
-.admin-menu {
+.login-btn {
+  width: 80% !important;
+  background-color: #3f72af !important;
+  color: white !important;
+  font-weight: normal !important;
+  border-radius: 8rpx !important;
+}
+
+.user-section {
   background: white;
   border-radius: 16rpx;
-  overflow: hidden;
+  padding: 32rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
-.menu-item {
+.user-info {
   display: flex;
   align-items: center;
-  padding: 32rpx;
+  padding-bottom: 32rpx;
+  border-bottom: 2rpx solid #f0f0f0;
+}
+
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  margin-right: 24rpx;
+}
+
+.nickname {
+  font-size: 36rpx;
+  font-weight: 500;
+  color: #333;
+  margin-right: 16rpx;
+}
+
+.admin-badge {
+  background: linear-gradient(135deg, #1a237e 0%, #3f72af 100%);
+  color: white;
+  font-size: 22rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.menu-list {
+  margin-top: 32rpx;
+}
+
+.menu-item {
+  padding: 24rpx 0;
   border-bottom: 2rpx solid #f0f0f0;
 }
 
@@ -35,32 +82,39 @@
   border-bottom: none;
 }
 
-.menu-icon {
-  font-size: 48rpx;
-  margin-right: 24rpx;
+.menu-item-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.menu-content {
-  flex: 1;
-}
-
-.menu-title {
+.menu-item-text {
   font-size: 32rpx;
-  font-weight: 500;
   color: #333;
-  margin-bottom: 8rpx;
 }
 
-.menu-desc {
-  font-size: 24rpx;
-  color: #666;
-}
-
-.menu-arrow {
+.menu-item-arrow {
   color: #999;
   font-size: 32rpx;
 }
 
-.menu-item:active {
-  background-color: #f8f9fa;
+.admin-menu-item {
+  border-top: 2rpx solid #e0e0e0;
+  margin-top: 16rpx;
+  padding-top: 32rpx;
+}
+
+.admin-menu-item .menu-item-text {
+  color: #1a237e;
+  font-weight: 500;
+}
+
+.logout-btn {
+  margin-top: 48rpx;
+  width: 100% !important;
+  background-color: #f8f9fa !important;
+  color: #666 !important;
+  font-weight: normal !important;
+  border: 2rpx solid #ddd !important;
+  border-radius: 8rpx !important;
 }

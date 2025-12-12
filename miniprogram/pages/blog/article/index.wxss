@@ -532,3 +532,74 @@
   background-color: #f8f9fa;
   font-weight: 600;
 }
+
+/* 相关题目样式 */
+.related-questions {
+  margin-top: 60rpx;
+  padding-top: 40rpx;
+  border-top: 2rpx solid #e9ecef;
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 30rpx;
+  display: block;
+}
+
+.questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.question-card {
+  background: #f8f9fa;
+  border: 1rpx solid #e9ecef;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+}
+
+.question-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.question-type {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+}
+
+.difficulty {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.question-card-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 20rpx;
+  line-height: 1.6;
+}
+
+.question-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.tag {
+  background: #e9ecef;
+  color: #666;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+}

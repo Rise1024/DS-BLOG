@@ -1,7 +1,8 @@
 import os
 from flask import Flask
 from config.config import get_config, logger
-from model.models import init_redis  # 添加 Redis 连接导入
+from model.models import init_redis  # Redis连接（用于缓存）
+from model.init_db import init_database  # SQLite数据库初始化
 from auth.extensions import init_auth
 
 
@@ -13,8 +14,11 @@ app.config.from_object(cfg)
 # 日志配置
 cfg.init_app(app)
 
-# 初始化数据库
+# 初始化Redis（用于缓存）
 init_redis(app)
+
+# 初始化SQLite数据库
+init_database(app)
 
 # 初始化认证工具
 with app.app_context():
@@ -22,16 +26,18 @@ with app.app_context():
 
 # 注册蓝图
 from routes.admin import admin_bp
-from routes.mdpng import mdpng_bp
 from routes.login import login_bp
-from routes.rss import rss_bp
 from routes.blog import blog_bp
+from routes.question_bank import question_bank_bp
+from routes.mermaid import mermaid_bp
+from routes.feedback import feedback_bp
 
 app.register_blueprint(admin_bp)
-app.register_blueprint(mdpng_bp)
 app.register_blueprint(login_bp)
-app.register_blueprint(rss_bp)
 app.register_blueprint(blog_bp)
+app.register_blueprint(question_bank_bp)
+app.register_blueprint(mermaid_bp)
+app.register_blueprint(feedback_bp)
 
 
 if __name__ == "__main__":

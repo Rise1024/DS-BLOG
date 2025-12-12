@@ -1,0 +1,68 @@
+<view class="container">
+  <!-- 筛选栏 -->
+  <view class="filters">
+    <picker 
+      mode="selector" 
+      range="{{['全部', '⭐ 简单', '⭐⭐ 较易', '⭐⭐⭐ 中等', '⭐⭐⭐⭐ 较难', '⭐⭐⭐⭐⭐ 困难']}}"
+      value="{{selectedDifficulty === '' ? 0 : parseInt(selectedDifficulty)}}"
+      bindchange="onDifficultyChange"
+    >
+      <view class="filter-item">
+        <text>难度：{{selectedDifficulty === '' ? '全部' : ['', '⭐ 简单', '⭐⭐ 较易', '⭐⭐⭐ 中等', '⭐⭐⭐⭐ 较难', '⭐⭐⭐⭐⭐ 困难'][parseInt(selectedDifficulty)]}}</text>
+        <icon type="arrowright" size="16" color="#999"></icon>
+      </view>
+    </picker>
+    
+    <picker 
+      mode="selector" 
+      range="{{['全部', '简答题', '编程题']}}"
+      value="{{selectedType === '' ? 0 : (selectedType === 'short_answer' ? 1 : 2)}}"
+      bindchange="onTypeChange"
+    >
+      <view class="filter-item">
+        <text>类型：{{selectedType === '' ? '全部' : (selectedType === 'short_answer' ? '简答题' : '编程题')}}</text>
+        <icon type="arrowright" size="16" color="#999"></icon>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{isLoading && questions.length === 0}}" class="loading">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+
+  <!-- 题目列表 -->
+  <view wx:else class="question-list">
+    <view wx:if="{{questions.length === 0}}" class="empty-state">
+      <text>暂无题目</text>
+    </view>
+
+    <view 
+      wx:for="{{questions}}" 
+      wx:key="id"
+      class="question-item"
+      bindtap="goToQuestion"
+      data-id="{{item.id}}"
+    >
+      <view class="question-header">
+        <text class="question-type">{{item.type === 'short_answer' ? '简答题' : '编程题'}}</text>
+        <text class="difficulty">{{item.difficulty}}⭐</text>
+      </view>
+      <view class="question-title">{{item.title}}</view>
+      <view class="question-tags">
+        <text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag" class="tag">{{tag}}</text>
+      </view>
+    </view>
+
+    <!-- 加载更多 -->
+    <view wx:if="{{pagination.page < pagination.total_pages}}" class="load-more">
+      <text>加载更多...</text>
+    </view>
+
+    <view wx:if="{{pagination.page >= pagination.total_pages && questions.length > 0}}" class="no-more">
+      <text>没有更多了</text>
+    </view>
+  </view>
+</view>
+

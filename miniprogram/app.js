@@ -1,7 +1,7 @@
 App({
   globalData: {
     userInfo: null,
-    serverUrl: 'http://localhost:5000'
+    serverUrl: 'http://localhost/rssmd'
   },
   towxml:require('/towxml/index'),
 

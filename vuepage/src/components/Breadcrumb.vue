@@ -138,14 +138,13 @@ const breadcrumbItems = computed(() => {
 
 <style scoped>
 .breadcrumb {
-  background: var(--color-bg-primary);
+  background-color: var(--color-bg-primary);
   border-bottom: 1px solid var(--color-border-primary);
   padding: var(--space-3) var(--space-6);
   position: sticky;
   top: 0;
   z-index: 100;
   backdrop-filter: blur(8px);
-  background: rgba(255, 255, 255, 0.95);
 }
 
 .breadcrumb-list {
@@ -224,11 +223,30 @@ const breadcrumbItems = computed(() => {
   }
 }
 
-/* 暗色主题适配 */
-@media (prefers-color-scheme: dark) {
-  .breadcrumb {
-    background: rgba(23, 25, 35, 0.95);
-    border-bottom-color: var(--color-border-primary);
-  }
+:global(.dark) .breadcrumb {
+  background: rgba(15, 23, 42, 0.92);
+  border-bottom-color: rgba(148, 163, 184, 0.2);
+}
+
+:global(.dark) .breadcrumb-item {
+  color: rgba(226, 232, 240, 0.7);
+}
+
+:global(.dark) .breadcrumb-item.is-active {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+:global(.dark) .breadcrumb-link {
+  color: rgba(191, 219, 254, 0.85);
+}
+
+:global(.dark) .breadcrumb-link:hover {
+  color: rgba(147, 197, 253, 1);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+:global(.dark) .breadcrumb-home-icon,
+:global(.dark) .breadcrumb-separator {
+  color: rgba(148, 163, 184, 0.7);
 }
 </style>

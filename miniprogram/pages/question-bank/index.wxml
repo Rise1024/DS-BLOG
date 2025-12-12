@@ -1,0 +1,89 @@
+<view class="container">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-box">
+      <icon type="search" size="16" color="#999"></icon>
+      <input 
+        type="text" 
+        placeholder="搜索题目..." 
+        value="{{searchQuery}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearchConfirm"
+        confirm-type="search"
+      />
+      <view wx:if="{{searchQuery}}" class="clear-btn" bindtap="clearSearch">
+        <icon type="clear" size="16" color="#999"></icon>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{isLoading}}" class="loading">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+
+  <!-- 搜索结果 -->
+  <view wx:elif="{{showSearchResults}}" class="search-results">
+    <view wx:if="{{searchResults.questions.length > 0}}" class="result-section">
+      <view class="section-title">题目 ({{searchResults.pagination.total}})</view>
+      <view class="question-list">
+        <view 
+          wx:for="{{searchResults.questions}}" 
+          wx:key="id"
+          class="question-item"
+          bindtap="goToQuestion"
+          data-id="{{item.id}}"
+        >
+          <view class="question-header">
+            <text class="question-type">{{item.type === 'short_answer' ? '简答题' : '编程题'}}</text>
+            <text class="difficulty">{{item.difficulty}}⭐</text>
+          </view>
+          <view class="question-title">{{item.title}}</view>
+          <view class="question-tags">
+            <text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag" class="tag">{{tag}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{searchResults.tags.length > 0}}" class="result-section">
+      <view class="section-title">标签</view>
+      <view class="tag-list">
+        <text 
+          wx:for="{{searchResults.tags}}" 
+          wx:key="id"
+          class="tag tag-clickable"
+          bindtap="goToTag"
+          data-name="{{item.name}}"
+        >
+          {{item.name}} ({{item.count}})
+        </text>
+      </view>
+    </view>
+
+    <view wx:if="{{searchResults.questions.length === 0 && searchResults.tags.length === 0}}" class="empty-state">
+      <text>没有找到相关结果</text>
+    </view>
+  </view>
+
+  <!-- 树形结构 -->
+  <view wx:else class="tree-container">
+    <tree-node
+      wx:for="{{treeData}}"
+      wx:key="id"
+      wx:for-item="node"
+      node="{{node}}"
+      is-root="{{true}}"
+      bind:nodeclick="onNodeClick"
+      bind:itemclick="onItemClick"
+    />
+    
+    <!-- 空状态 -->
+    <view wx:if="{{treeData.length === 0}}" class="empty-state">
+      <text>暂无分类</text>
+    </view>
+  </view>
+</view>
+
+

@@ -1,0 +1,31 @@
+<view class="h2w__mermaidBox">
+  <view class="h2w__mermaidView">
+    <!-- 加载中 -->
+    <view wx:if="{{isLoading}}" class="mermaid-loading">
+      <text>图表加载中...</text>
+    </view>
+    
+    <!-- 错误状态 -->
+    <view wx:elif="{{error}}" class="mermaid-error">
+      <text>{{error}}</text>
+    </view>
+    
+    <!-- 显示图片 -->
+    <image 
+      wx:elif="{{imageUrl}}" 
+      class="h2w__mermaidImage" 
+      src="{{imageUrl}}" 
+      mode="widthFix"
+      lazy-load="true"
+      bindload="onImageLoad"
+      binderror="onImageError"
+    />
+    
+    <!-- 显示代码（备用方案） -->
+    <view wx:else class="mermaid-code">
+      <text class="mermaid-code-label">Mermaid 图表代码：</text>
+      <text class="mermaid-code-content" selectable="true">{{code}}</text>
+    </view>
+  </view>
+</view>
+

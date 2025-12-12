@@ -198,9 +198,4 @@ class UserStatistics:
         pipeline.execute()
 
 
-class Rss:
-    @classmethod
-    def get_rss_data(cls, rss_name):
-        """获取RSS数据"""
-        key = f"rss:data:{rss_name}"
-        return redis_conn.get(key)
+# RSS相关类已删除（功能已移除）

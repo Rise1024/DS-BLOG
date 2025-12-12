@@ -36,9 +36,35 @@
 
     <!-- 文章正文 -->
     <view class="article-body">
-      <towxml wx:if="{{articleContent}}" nodes="{{articleContent}}" />
+      <towxml wx:if="{{articleContent && !isContentLoading}}" nodes="{{articleContent}}" />
+      <view wx:elif="{{isContentLoading}}" class="content-loading">
+        <text>内容加载中...</text>
+      </view>
       <view wx:else class="no-content">
         <text>内容加载中...</text>
+      </view>
+    </view>
+
+    <!-- 相关题目 -->
+    <view wx:if="{{article.related_questions && article.related_questions.length > 0}}" class="related-questions">
+      <view class="section-title">相关题目</view>
+      <view class="questions-list">
+        <view 
+          wx:for="{{article.related_questions}}" 
+          wx:key="id"
+          class="question-card"
+          bindtap="goToQuestion"
+          data-id="{{item.id}}"
+        >
+          <view class="question-card-header">
+            <text class="question-type">{{item.type === 'short_answer' ? '简答题' : '编程题'}}</text>
+            <text class="difficulty">{{item.difficulty}}⭐</text>
+          </view>
+          <view class="question-card-title">{{item.title}}</view>
+          <view class="question-card-tags">
+            <text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag" class="tag">{{tag}}</text>
+          </view>
+        </view>
       </view>
     </view>
 

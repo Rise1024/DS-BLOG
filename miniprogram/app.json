@@ -1,18 +1,18 @@
 {
   "pages": [
-    "pages/tools/index",
+    "pages/question-bank/index",
+    "pages/question-bank/list/index",
+    "pages/question-bank/detail/index",
     "pages/blog/index",
     "pages/blog/article/index",
     "pages/blog/search/index",
     "pages/index/index",
-    "pages/history/index",
+    "pages/favorites/index",
     "pages/feedback/index",
-    "pages/theme/index",
     "pages/about/index",
     "pages/admin/index",
     "pages/admin/users/index",
-    "pages/admin/analytics/index",
-    "pages/convert/index"
+    "pages/admin/feedbacks/index"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -26,8 +26,8 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/tools/index",
-        "text": "热点",
+        "pagePath": "pages/question-bank/index",
+        "text": "题库",
         "iconPath": "images/tools.png",
         "selectedIconPath": "images/tools-active.png"
       },

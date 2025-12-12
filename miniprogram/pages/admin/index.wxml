@@ -1,52 +1,61 @@
 <view class="container">
-  <view class="admin-header">
-    <text class="admin-title">管理员控制台</text>
+  <login-modal 
+    show="{{showLoginModal}}" 
+    bindclose="handleCloseLoginModal" 
+    bindlogin="handleGetUserInfo"
+  />
+  <view class="login-section" wx:if="{{!userInfo}}">
+    <view class="avatar-wrapper">
+      <image class="default-avatar" src="/images/default-avatar.png" mode="aspectFill" />
+    </view>
+    <button 
+      class="login-btn" 
+      bindtap="handleShowLoginModal"
+    >
+      微信登录
+    </button>
   </view>
 
-  <view class="admin-menu">
-    <navigator url="/pages/admin/users/index" class="menu-item">
-      <view class="menu-icon">👥</view>
-      <view class="menu-content">
-        <text class="menu-title">用户管理</text>
-        <text class="menu-desc">管理用户角色和权限</text>
+  <view class="user-section" wx:else>
+    <view class="user-info">
+      <image class="avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
+      <text class="nickname">{{userInfo.nickName}}</text>
+      <view class="admin-badge">管理员</view>
+    </view>
+    
+    <view class="menu-list">
+      <view class="menu-item" bindtap="navigateToFavorites">
+        <view class="menu-item-content">
+          <text class="menu-item-text">我的收藏</text>
+          <text class="menu-item-arrow">></text>
+        </view>
       </view>
-      <text class="menu-arrow">></text>
-    </navigator>
+      <view class="menu-item" bindtap="navigateToFeedback">
+        <view class="menu-item-content">
+          <text class="menu-item-text">意见反馈</text>
+          <text class="menu-item-arrow">></text>
+        </view>
+      </view>
+      <view class="menu-item" bindtap="navigateToAbout">
+        <view class="menu-item-content">
+          <text class="menu-item-text">关于我们</text>
+          <text class="menu-item-arrow">></text>
+        </view>
+      </view>
+      <view class="menu-item admin-menu-item" bindtap="navigateToFeedbacks">
+        <view class="menu-item-content">
+          <text class="menu-item-text">查看反馈</text>
+          <text class="menu-item-arrow">></text>
+        </view>
+      </view>
+      <view class="menu-item admin-menu-item" bindtap="navigateToUserManagement">
+        <view class="menu-item-content">
+          <text class="menu-item-text">用户管理</text>
+          <text class="menu-item-arrow">></text>
+        </view>
+      </view>
+    </view>
 
-    <navigator url="/pages/admin/analytics/index" class="menu-item">
-      <view class="menu-icon">📊</view>
-      <view class="menu-content">
-        <text class="menu-title">数据分析</text>
-        <text class="menu-desc">查看系统使用统计</text>
-      </view>
-      <text class="menu-arrow">></text>
-    </navigator>
-
-    <navigator url="/pages/history/index" class="menu-item">
-      <view class="menu-icon">📝</view>
-      <view class="menu-content">
-        <text class="menu-title">历史记录</text>
-        <text class="menu-desc">查看转换历史</text>
-      </view>
-      <text class="menu-arrow">></text>
-    </navigator>
-
-    <navigator url="/pages/theme/index" class="menu-item">
-      <view class="menu-icon">🎨</view>
-      <view class="menu-content">
-        <text class="menu-title">主题设置</text>
-        <text class="menu-desc">个性化主题配置</text>
-      </view>
-      <text class="menu-arrow">></text>
-    </navigator>
-
-    <navigator url="/pages/about/index" class="menu-item">
-      <view class="menu-icon">ℹ️</view>
-      <view class="menu-content">
-        <text class="menu-title">关于我们</text>
-        <text class="menu-desc">了解更多信息</text>
-      </view>
-      <text class="menu-arrow">></text>
-    </navigator>
+    <button class="logout-btn" bindtap="handleLogout">退出登录</button>
   </view>
 </view>

@@ -1,47 +1,75 @@
-# -*- coding: utf-8 -*-
-from flask import Blueprint, request, jsonify, current_app, send_file, abort
-from datetime import datetime
-import os
-import re
-import yaml
-import hashlib
-from pathlib import Path
-import markdown
-from markdown.extensions import toc, codehilite, tables, fenced_code
+"""
+博客相关API路由（数据库版本）
+"""
+from flask import Blueprint, request, jsonify, current_app
+from model.database import db, Article, Tag, ArticleQuestionRelation, Question, BlogCategory
 from model.blog_cache import get_cache
+from config.config import logger
+import markdown
+import re
+import hashlib
+import math
+from markdown.extensions import toc, codehilite, tables, fenced_code
 
-blog_bp = Blueprint('blog', __name__, url_prefix='/api/blog')
+blog_bp = Blueprint("blog", __name__, url_prefix="/api/v1/blog")
 
-def get_blog_dir():
-    """获取博客目录路径"""
-    return current_app.config.get('BLOG_DIR', os.path.join(os.path.dirname(__file__), '..', 'data', 'blog'))
 
-def parse_markdown_frontmatter(content):
-    """解析markdown文件的frontmatter"""
-    frontmatter = {}
-    content_lines = content.split('\n')
-    
-    if content_lines and content_lines[0].strip() == '---':
-        yaml_lines = []
-        i = 1
-        while i < len(content_lines) and content_lines[i].strip() != '---':
-            yaml_lines.append(content_lines[i])
-            i += 1
+def convert_markdown_to_html(content):
+    """将markdown转换为HTML"""
+    # 处理Mermaid代码块
+    content = process_mermaid_blocks(content)
+
+    md = markdown.Markdown(
+        extensions=["toc", "codehilite", "tables", "fenced_code", "attr_list"],
+        extension_configs={"toc": {"permalink": True, "permalink_title": "永久链接"}},
+    )
+
+    html_content = md.convert(content)
+
+    # 处理文章内部链接
+    html_content = process_article_links(html_content)
+
+    return html_content
+
+
+def process_mermaid_blocks(content):
+    """处理Mermaid代码块，将其转换为HTML div"""
+    pattern = r"```mermaid\s*\n(.*?)```"
+
+    def replace_mermaid(match):
+        mermaid_code = match.group(1).strip()
+        mermaid_id = hashlib.md5(mermaid_code.encode()).hexdigest()[:8]
+        return f'<div class="mermaid" id="mermaid-{mermaid_id}">\n{mermaid_code}\n</div>'
+
+    return re.sub(pattern, replace_mermaid, content, flags=re.DOTALL)
+
+
+def process_article_links(html_content):
+    """处理HTML中的文章内部链接"""
+    def replace_link_href(match):
+        a_tag = match.group(0)
+        href_match = re.search(r'href="([^"]*)"', a_tag)
+        if href_match:
+            href = href_match.group(1)
+            
+            # 处理内部文章链接（格式：/blog/article/{id}）
+            if href.startswith('/blog/article/') or href.startswith('article/'):
+                article_id = href.split('/')[-1]
+                new_a_tag = a_tag.replace(
+                    f'href="{href}"',
+                    f'href="#" data-article-id="{article_id}" class="internal-article-link"'
+                )
+                return new_a_tag
         
-        if i < len(content_lines):
-            try:
-                frontmatter = yaml.safe_load('\n'.join(yaml_lines)) or {}
-                content = '\n'.join(content_lines[i+1:])
-            except yaml.YAMLError:
-                pass
-    
-    return frontmatter, content
+        return a_tag
+
+    html_content = re.sub(r"<a[^>]*>", replace_link_href, html_content)
+    return html_content
+
 
 def extract_headings_from_html(html_content):
-    """从HTML内容中提取标题信息，确保ID与HTML中的实际ID匹配"""
+    """从HTML内容中提取标题信息"""
     headings = []
-    
-    # 匹配HTML标题标签
     pattern = r'<h([1-6])[^>]*id="([^"]*)"[^>]*>(.*?)</h[1-6]>'
     matches = re.findall(pattern, html_content, re.DOTALL)
     
@@ -49,566 +77,371 @@ def extract_headings_from_html(html_content):
         level = int(match[0])
         anchor_id = match[1]
         title_html = match[2]
-        
-        # 提取标题文本，去除HTML标签和永久链接
-        title_text = re.sub(r'<a[^>]*>.*?</a>', '', title_html).strip()
+        title_text = re.sub(r"<a[^>]*>.*?</a>", "", title_html).strip()
         
         headings.append({
-            'level': level,
-            'title': title_text,
-            'anchor': anchor_id,
-            'line': 0  # 从HTML中提取，无法确定原始行号
+            "level": level,
+            "title": title_text,
+            "anchor": anchor_id,
+            "line": 0
         })
     
     return headings
 
-def scan_blog_directory():
-    """扫描博客目录，获取所有分类和文章"""
-    categories = {}
-    blog_dir = get_blog_dir()
-    
-    if not os.path.exists(blog_dir):
-        os.makedirs(blog_dir, exist_ok=True)
-        return categories
-    
-    for category_name in os.listdir(blog_dir):
-        category_path = os.path.join(blog_dir, category_name)
-        if os.path.isdir(category_path):
-            articles = []
-            
-            for filename in os.listdir(category_path):
-                if filename.endswith('.md'):
-                    file_path = os.path.join(category_path, filename)
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                        
-                        frontmatter, markdown_content = parse_markdown_frontmatter(content)
-                        
-                        # 生成文章ID（基于文件路径）
-                        article_id = f"{category_name}/{filename[:-3]}"
-                        
-                        # 提取文章信息
-                        article_info = {
-                            'id': article_id,
-                            'title': frontmatter.get('title', filename[:-3]),
-                            'description': frontmatter.get('description', ''),
-                            'tags': frontmatter.get('tags', []),
-                            'category': category_name,
-                            'date': frontmatter.get('date', ''),
-                            'createdAt': frontmatter.get('date', ''),
-                            'updatedAt': frontmatter.get('date', ''),
-                            'content': markdown_content,
-                            'frontmatter': frontmatter,
-                            'file_path': file_path,
-                            'filename': filename
-                        }
-                        
-                        # 生成摘要
-                        if not article_info['description']:
-                            # 从内容中提取摘要
-                            plain_text = re.sub(r'[#*`\[\]]', '', markdown_content)
-                            plain_text = re.sub(r'\n+', ' ', plain_text).strip()
-                            article_info['description'] = plain_text[:200] + ('...' if len(plain_text) > 200 else '')
-                        
-                        articles.append(article_info)
-                        
-                    except Exception as e:
-                        print(f"Error reading {file_path}: {e}")
-                        continue
-            
-            # 按日期排序
-            articles.sort(key=lambda x: x.get('date', ''), reverse=True)
-            categories[category_name] = articles
-    
-    return categories
 
-def get_all_articles():
-    """获取所有文章"""
-    categories = scan_blog_directory()
-    all_articles = []
-    
-    for category_name, articles in categories.items():
-        for article in articles:
-            # 为列表显示准备数据
-            list_article = {
-                'id': article['id'],
-                'title': article['title'],
-                'description': article['description'],
-                'tags': article['tags'],
-                'category': article['category'],
-                'createdAt': article['createdAt'],
-                'updatedAt': article['updatedAt']
-            }
-            all_articles.append(list_article)
-    
-    return all_articles
-
-def get_article_by_id(article_id):
-    """根据ID获取文章详情"""
-    categories = scan_blog_directory()
-    
-    for category_name, articles in categories.items():
-        for article in articles:
-            if article['id'] == article_id:
-                return article
-    
-    return None
-
-def convert_markdown_to_html(content, article_path=None):
-    """将markdown转换为HTML，并处理图片路径"""
-    # 先处理Mermaid代码块
-    content = process_mermaid_blocks(content)
-    
-    md = markdown.Markdown(
-        extensions=[
-            'toc',
-            'codehilite',
-            'tables',
-            'fenced_code',
-            'attr_list'
-        ],
-        extension_configs={
-            'toc': {
-                'permalink': True,
-                'permalink_title': '永久链接'
-            }
-        }
-    )
-    
-    html_content = md.convert(content)
-    
-    # 处理图片路径
-    if article_path:
-        html_content = process_image_paths(html_content, article_path)
-    
-    return html_content
-
-def process_mermaid_blocks(content):
-    """处理Mermaid代码块，将其转换为HTML div"""
-    import re
-    
-    # 匹配 ```mermaid 代码块
-    pattern = r'```mermaid\n(.*?)\n```'
-    
-    def replace_mermaid(match):
-        mermaid_code = match.group(1)
-        # 生成唯一的ID
-        import hashlib
-        mermaid_id = hashlib.md5(mermaid_code.encode()).hexdigest()[:8]
-        
-        # 返回HTML div，包含Mermaid代码
-        return f'<div class="mermaid" id="mermaid-{mermaid_id}">\n{mermaid_code}\n</div>'
-    
-    return re.sub(pattern, replace_mermaid, content, flags=re.DOTALL)
-
-def process_image_paths(html_content, article_path):
-    """处理HTML中的图片路径，将相对路径转换为API路径"""
-    # 获取文章所在目录
-    article_dir = os.path.dirname(article_path)
-    blog_dir = get_blog_dir()
-    
-    # 匹配img标签中的src属性
-    def replace_img_src(match):
-        img_tag = match.group(0)
-        src_match = re.search(r'src="([^"]*)"', img_tag)
-        if src_match:
-            src_path = src_match.group(1)
-            # 如果是外部链接，保持不变
-            if src_path.startswith(('http://', 'https://')):
-                return img_tag
-            # 如果已经是API路径，保持不变
-            if src_path.startswith('/api/'):
-                return img_tag
-            
-            # 处理博客内部路径
-            if src_path.startswith('/'):
-                # 特殊处理 /images/ 开头的路径，将其解析为文章目录下的images子目录
-                if src_path.startswith('/images/'):
-                    # 获取文章所在目录名（分类名）
-                    category_name = os.path.basename(article_dir)
-                    # 构建完整路径：分类名/images/文件名
-                    image_filename = src_path[8:]  # 去掉 '/images/' 前缀
-                    clean_path = f"{category_name}/images/{image_filename}"
-                    api_path = f"/api/blog/images/{clean_path}"
-                else:
-                    # 其他以 / 开头的路径，去掉开头的 / 并直接使用
-                    clean_path = src_path.lstrip('/')
-                    api_path = f"/api/blog/images/{clean_path}"
-            else:
-                # 特殊处理 images/ 开头的相对路径，将其解析为文章目录下的images子目录
-                if src_path.startswith('images/'):
-                    # 获取文章所在目录名（分类名）
-                    category_name = os.path.basename(article_dir)
-                    # 构建完整路径：分类名/images/文件名
-                    image_filename = src_path[7:]  # 去掉 'images/' 前缀
-                    clean_path = f"{category_name}/images/{image_filename}"
-                    api_path = f"/api/blog/images/{clean_path}"
-                else:
-                    # 其他相对路径，基于文章目录构建
-                    full_image_path = os.path.join(article_dir, src_path)
-                    relative_path = os.path.relpath(full_image_path, blog_dir)
-                    api_path = f"/api/blog/images/{relative_path.replace(os.sep, '/')}"
-            
-            # 替换src属性
-            new_img_tag = img_tag.replace(f'src="{src_path}"', f'src="{api_path}"')
-            return new_img_tag
-        return img_tag
-    
-    # 使用正则表达式替换所有img标签
-    html_content = re.sub(r'<img[^>]*>', replace_img_src, html_content)
-    
-    return html_content
-
-def extract_popular_tags(articles):
-    """从文章列表中提取热门标签"""
-    tag_counts = {}
-
-    for article in articles:
-        if article.get('tags'):
-            for tag in article['tags']:
-                tag_counts[tag] = tag_counts.get(tag, 0) + 1
-
-    # 返回前3个最热门的标签
-    return [tag for tag, count in sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:3]]
-
-@blog_bp.route('/categories', methods=['GET'])
+@blog_bp.route("/categories", methods=["GET"])
 def get_categories():
-    """获取所有分类"""
+    """获取所有分类（基于新的树形结构）"""
     try:
-        # 获取缓存实例
         cache = get_cache()
+        cache_key = "blog:categories"
+        clear_cache = request.args.get("clear_cache", "false").lower() == "true"
+        
+        if clear_cache:
+            cache.delete(cache_key)
+            logger.info("已清除分类缓存")
+        
+        cached_data = cache.get(cache_key)
+        if cached_data and not clear_cache:
+            logger.info("从缓存获取分类列表")
+            return jsonify({"success": True, "data": cached_data, "cached": True})
 
-        # 尝试从缓存获取分类列表
-        category_list = cache.get_categories()
-
-        if category_list is not None:
-            current_app.logger.info("从缓存获取分类列表")
-            return jsonify({
-                'success': True,
-                'data': category_list,
-                'cached': True
-            })
-
-        # 缓存未命中，从文件系统获取
-        current_app.logger.info("缓存未命中，从文件系统获取分类列表")
-        categories = scan_blog_directory()
+        # 从 blog_categories 表获取所有分类（树形结构）
+        all_categories = BlogCategory.query.order_by(BlogCategory.order, BlogCategory.id).all()
+        
+        # 构建分类字典
+        category_dict = {}
+        root_categories = []
+        
+        # 第一遍：创建所有分类节点
+        for cat in all_categories:
+            category_dict[cat.id] = {
+                'id': cat.id,
+                'name': cat.name,
+                'description': cat.description,
+                'order': cat.order,
+                'parent_id': cat.parent_id,
+                'children': [],
+                'items': [],
+                'count': 0
+            }
+        
+        # 第二遍：建立父子关系
+        for cat in all_categories:
+            cat_data = category_dict[cat.id]
+            if cat.parent_id is None:
+                root_categories.append(cat_data)
+            else:
+                if cat.parent_id in category_dict:
+                    category_dict[cat.parent_id]['children'].append(cat_data)
+                else:
+                    logger.warning(f"分类 {cat.id} 的父分类 {cat.parent_id} 不存在")
+        
+        # 第三遍：统计文章数量并添加文章列表
+        articles = Article.query.all()
+        for article in articles:
+            if article.category_id and article.category_id in category_dict:
+                cat_data = category_dict[article.category_id]
+                cat_data['count'] += 1
+                cat_data['items'].append({
+                    'id': article.id,
+                    'title': article.title,
+                    'category_id': article.category_id
+                })
+        
+        # 递归计算总数量（包括子分类的文章）
+        def count_total(cat_data):
+            total = cat_data['count']
+            for child in cat_data['children']:
+                total += count_total(child)
+            cat_data['total_count'] = total
+            return total
+        
+        for cat_data in root_categories:
+            count_total(cat_data)
+        
+        # 递归转换分类数据，确保子分类也包含 items
+        def convert_category_data(cat_data):
+            result = {
+                "name": cat_data['name'],
+                "id": cat_data['id'],
+                "count": cat_data['count'],
+                "total_count": cat_data.get('total_count', cat_data['count']),
+                "items": cat_data['items'],
+                "children": [],
+                "description": cat_data.get('description') or f"{cat_data['name']}相关文章",
+                "order": cat_data.get('order', 0),
+                "lastUpdated": None,  # 可以后续添加
+                "featured": False,
+                "trending": False,
+                "latest": False,
+                "views": cat_data.get('total_count', cat_data['count']) * 100,
+                "popularTags": []
+            }
+            # 递归处理子分类
+            if cat_data['children']:
+                result['children'] = [convert_category_data(child) for child in cat_data['children']]
+            return result
+        
+        # 转换为列表格式（保持向后兼容）
         category_list = []
+        for cat_data in root_categories:
+            category_list.append(convert_category_data(cat_data))
 
-        for category_name, articles in categories.items():
-            # 增强分类信息
-            last_updated = max(
-                (article.get('updatedAt') or article.get('createdAt') for article in articles),
-                default=None
-            )
+        # 根据配置设置分类标签
+        featured_categories = current_app.config.get("BLOG_FEATURED_CATEGORIES", [])
+        trending_categories = current_app.config.get("BLOG_TRENDING_CATEGORIES", [])
+        latest_count = current_app.config.get("BLOG_LATEST_COUNT", 1)
+        
+        for category in category_list:
+            if category["name"] in featured_categories:
+                category["featured"] = True
+            if category["name"] in trending_categories:
+                category["trending"] = True
+        
+        # 设置最新标签
+        categories_with_date = [c for c in category_list if c.get("lastUpdated")]
+        if categories_with_date:
+            categories_with_date.sort(key=lambda x: x["lastUpdated"], reverse=True)
+            for i in range(min(latest_count, len(categories_with_date))):
+                for category in category_list:
+                    if category["name"] == categories_with_date[i]["name"]:
+                        category["latest"] = True
+                        break
+        
+        # 缓存2小时
+        cache.set(cache_key, category_list, 7200)
 
-            category_list.append({
-                'name': category_name,
-                'count': len(articles),
-                'articles': articles,
-                'description': f'{category_name}技术相关文章',
-                'lastUpdated': last_updated,
-                'featured': len(articles) > 10,  # 文章数量>10的设为精选
-                'trending': len(articles) > 5,   # 文章数量>5的设为热门
-                'views': len(articles) * 100,    # 模拟浏览量
-                'popularTags': extract_popular_tags([article for article in articles])
-            })
-
-        # 设置缓存
-        cache.set_categories(category_list)
-
-        return jsonify({
-            'success': True,
-            'data': category_list,
-            'cached': False
-        })
+        return jsonify({"success": True, "data": category_list, "cached": False})
     except Exception as e:
-        current_app.logger.error(f"获取分类失败: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"获取分类失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
-@blog_bp.route('/articles', methods=['GET'])
+
+@blog_bp.route("/articles", methods=["GET"])
 def get_articles():
     """获取文章列表"""
     try:
-        category = request.args.get('category', '')
-        search = request.args.get('search', '')
-
-        # 获取缓存实例
-        cache = get_cache()
-
-        # 尝试从缓存获取文章列表
-        articles = cache.get_articles(category, search)
-
-        if articles is not None:
-            current_app.logger.info(f"从缓存获取文章列表: category={category}, search={search}")
-            return jsonify({
-                'success': True,
-                'data': articles,
-                'cached': True
-            })
-
-        # 缓存未命中，从文件系统获取
-        current_app.logger.info(f"缓存未命中，从文件系统获取文章列表: category={category}, search={search}")
-
-        if category:
-            # 获取特定分类的文章
-            categories = scan_blog_directory()
-            if category in categories:
-                articles = categories[category]
+        category = request.args.get("category", "")
+        search = request.args.get("search", "")
+        tag = request.args.get("tag", "")
+        page = request.args.get("page", 1, type=int)
+        page_size = request.args.get("page_size", 20, type=int)
+        
+        # 构建查询
+        query = Article.query
+        
+        # 分类筛选（支持 category_id 或 category 名称）
+        category_id = request.args.get("category_id", type=int)
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+        elif category:
+            # 如果传入的是分类名称，先查找分类 ID
+            blog_category = BlogCategory.query.filter_by(name=category).first()
+            if blog_category:
+                query = query.filter_by(category_id=blog_category.id)
             else:
-                articles = []
-        else:
-            # 获取所有文章
-            articles = get_all_articles()
+                # 如果找不到分类，返回空结果
+                query = query.filter(Article.id == -1)  # 永远不匹配的条件
+        
+        # 标签筛选
+        if tag:
+            tag_obj = Tag.query.filter_by(name=tag).first()
+            if tag_obj:
+                query = query.filter(Article.tags.contains(tag_obj))
 
-        # 搜索过滤
+        # 搜索（标题和描述）
         if search:
-            search_lower = search.lower()
-            articles = [
-                article for article in articles
-                if (search_lower in article.get('title', '').lower() or
-                    search_lower in article.get('description', '').lower() or
-                    any(search_lower in tag.lower() for tag in article.get('tags', [])))
-            ]
-
-        # 增强文章信息
-        for article in articles:
-            if 'reading_time' not in article:
-                # 估算阅读时间（按250字/分钟计算）
-                content_length = len(article.get('content', ''))
-                article['reading_time'] = max(1, content_length // 250)
-
-            if 'word_count' not in article:
-                article['word_count'] = len(article.get('content', ''))
-
-        # 设置缓存
-        cache.set_articles(articles, category, search)
+            query = query.filter(
+                db.or_(
+                    Article.title.like(f"%{search}%"),
+                    Article.description.like(f"%{search}%")
+                )
+            )
+        
+        # 总数
+        total = query.count()
+        
+        # 分页
+        articles = query.order_by(Article.order, Article.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        
+        result = [a.to_dict(include_content=False) for a in articles]
+        
+        # 估算阅读时间
+        for article_data, article_obj in zip(result, articles):
+            if article_obj.content:
+                article_data["reading_time"] = max(1, len(article_obj.content) // 250)
+                article_data["word_count"] = len(article_obj.content)
 
         return jsonify({
-            'success': True,
-            'data': articles,
-            'cached': False
+            "success": True, 
+            "data": result,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "total_pages": math.ceil(total / page_size) if page_size > 0 else 0
+            }
         })
     except Exception as e:
-        current_app.logger.error(f"获取文章列表失败: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"获取文章列表失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
-@blog_bp.route('/articles/<path:article_id>', methods=['GET'])
+
+@blog_bp.route("/articles/<int:article_id>", methods=["GET"])
 def get_article(article_id):
     """获取单篇文章"""
     try:
-        # 获取缓存实例
         cache = get_cache()
+        cache_key = f"blog:article:{article_id}"
+        cached_data = cache.get(cache_key)
 
-        # 尝试从缓存获取文章详情
-        article_detail = cache.get_article(article_id)
+        if cached_data:
+            logger.info(f"从缓存获取文章详情: {article_id}")
+            return jsonify({"success": True, "data": cached_data, "cached": True})
 
-        if article_detail is not None:
-            current_app.logger.info(f"从缓存获取文章详情: {article_id}")
-            return jsonify({
-                'success': True,
-                'data': article_detail,
-                'cached': True
-            })
-
-        # 缓存未命中，从文件系统获取
-        current_app.logger.info(f"缓存未命中，从文件系统获取文章详情: {article_id}")
-
-        article = get_article_by_id(article_id)
-        if not article:
-            return jsonify({
-                'success': False,
-                'error': '文章不存在'
-            }), 404
-
-        # 生成内容哈希，用于HTML缓存验证
-        content_hash = hashlib.md5(article['content'].encode()).hexdigest()
-
-        # 尝试从缓存获取HTML内容
-        html_content = cache.get_article_html(article_id, content_hash)
-
-        if html_content is None:
-            # HTML缓存未命中，重新转换
-            current_app.logger.info(f"HTML缓存未命中，重新转换: {article_id}")
-            html_content = convert_markdown_to_html(article['content'], article['file_path'])
-            # 缓存HTML内容
-            cache.set_article_html(article_id, html_content, content_hash)
+        # 从数据库获取
+        article = Article.query.get_or_404(article_id)
+        
+        # 增加浏览量
+        article.view_count += 1
+        db.session.commit()
+        
+        # 生成内容哈希
+        content_hash = hashlib.md5(article.content.encode()).hexdigest() if article.content else ""
+        
+        # 转换Markdown为HTML（如果未缓存或内容已更新）
+        cache_html_key = f"blog:article_html:{article_id}:{content_hash}"
+        html_content = cache.get(cache_html_key)
+        
+        if not html_content:
+            html_content = convert_markdown_to_html(article.content)
+            # 缓存HTML内容（8小时）
+            cache.set(cache_html_key, html_content, 28800)
 
         # 从HTML中提取标题大纲
         headings = extract_headings_from_html(html_content)
 
         # 计算阅读时间和字数
-        reading_time = max(1, len(article['content']) // 250)
-        word_count = len(article['content'])
+        reading_time = max(1, len(article.content) // 250) if article.content else 0
+        word_count = len(article.content) if article.content else 0
+        
+        # 获取关联的题目
+        related_questions = []
+        relations = ArticleQuestionRelation.query.filter_by(article_id=article_id).all()
+        for relation in relations:
+            question = relation.question
+            related_questions.append({
+                "id": question.id,
+                "title": question.title,
+                "type": question.type,
+                "difficulty": question.difficulty,
+                "tags": [tag.name for tag in question.tags] if question.tags else []
+            })
 
         # 构建文章详情
         article_detail = {
-            'id': article['id'],
-            'title': article['title'],
-            'description': article['description'],
-            'tags': article['tags'],
-            'category': article['category'],
-            'createdAt': article['createdAt'],
-            'updatedAt': article['updatedAt'],
-            'content': article['content'],
-            'html_content': html_content,
-            'headings': headings,
-            'frontmatter': article['frontmatter'],
-            'reading_time': reading_time,
-            'word_count': word_count,
-            'content_hash': content_hash
+            "id": article.id,
+            "title": article.title,
+            "description": article.description,
+            "tags": [tag.name for tag in article.tags] if article.tags else [],
+            "category_id": article.category_id,
+            "category": article.category.name if article.category else None,
+            "createdAt": article.created_at.isoformat() if article.created_at else None,
+            "updatedAt": article.updated_at.isoformat() if article.updated_at else None,
+            "content": article.content,
+            "html_content": html_content,
+            "headings": headings,
+            "reading_time": reading_time,
+            "word_count": word_count,
+            "view_count": article.view_count,
+            "related_questions": related_questions
         }
 
-        # 设置文章详情缓存
-        cache.set_article(article_id, article_detail)
+        # 缓存文章详情（4小时）
+        cache.set(cache_key, article_detail, 14400)
 
-        return jsonify({
-            'success': True,
-            'data': article_detail,
-            'cached': False
-        })
+        return jsonify({"success": True, "data": article_detail, "cached": False})
     except Exception as e:
-        current_app.logger.error(f"获取文章详情失败: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"获取文章详情失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@blog_bp.route("/tags", methods=["GET"])
+def get_tags():
+    """获取标签列表"""
+    try:
+        tags = Tag.query.order_by(Tag.count.desc(), Tag.name).all()
+        result = [tag.to_dict() for tag in tags]
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        logger.error(f"获取标签列表失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@blog_bp.route("/search", methods=["GET"])
+def search_articles():
+    """搜索文章（仅搜索标题和标签）"""
+    try:
+        query_str = request.args.get("q", "").strip()
+        if not query_str:
+            return jsonify({"success": False, "error": "搜索关键词不能为空"}), 400
+        
+        page = request.args.get("page", 1, type=int)
+        page_size = request.args.get("page_size", 20, type=int)
+        
+        # 搜索文章（标题和描述）
+        articles_query = Article.query.filter(
+            db.or_(
+                Article.title.like(f"%{query_str}%"),
+                Article.description.like(f"%{query_str}%")
+            )
+        )
+        
+        total = articles_query.count()
+        articles = articles_query.order_by(Article.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        
+        # 搜索标签
+        tags = Tag.query.filter(Tag.name.like(f"%{query_str}%")).limit(10).all()
+        
+        result = {
+            "articles": [a.to_dict(include_content=False) for a in articles],
+            "tags": [tag.to_dict() for tag in tags],
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "total_pages": math.ceil(total / page_size) if page_size > 0 else 0
+            }
+        }
+        
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        logger.error(f"搜索失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 # 缓存管理API
-@blog_bp.route('/cache/stats', methods=['GET'])
+@blog_bp.route("/cache/stats", methods=["GET"])
 def get_cache_stats():
     """获取缓存统计信息"""
     try:
         cache = get_cache()
         stats = cache.get_cache_stats()
-
-        return jsonify({
-            'success': True,
-            'data': stats
-        })
+        return jsonify({"success": True, "data": stats})
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
-@blog_bp.route('/cache/clear', methods=['POST'])
+
+@blog_bp.route("/cache/clear", methods=["POST"])
 def clear_cache():
     """清理所有博客缓存"""
     try:
         cache = get_cache()
         cleared_count = cache.invalidate_all_cache()
-
         return jsonify({
-            'success': True,
-            'data': {
-                'message': '缓存清理完成',
-                'cleared_keys': cleared_count
-            }
+                "success": True,
+            "data": {"message": "缓存清理完成", "cleared_keys": cleared_count}
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@blog_bp.route('/cache/warmup', methods=['POST'])
-def warmup_cache():
-    """预热缓存"""
-    try:
-        cache = get_cache()
-        result = cache.warm_up_cache(scan_blog_directory, get_all_articles)
-
-        return jsonify({
-            'success': result['success'],
-            'data': result
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@blog_bp.route('/search', methods=['GET'])
-def search_articles():
-    """搜索文章"""
-    try:
-        query = request.args.get('q', '').strip()
-        if not query:
-            return jsonify({
-                'success': False,
-                'error': '搜索关键词不能为空'
-            }), 400
-        
-        articles = get_all_articles()
-        search_lower = query.lower()
-        
-        filtered_articles = [
-            article for article in articles
-            if (search_lower in article.get('title', '').lower() or
-                search_lower in article.get('description', '').lower() or
-                any(search_lower in tag.lower() for tag in article.get('tags', [])))
-        ]
-        
-        return jsonify({
-            'success': True,
-            'data': filtered_articles
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@blog_bp.route('/config', methods=['GET'])
-def get_blog_config_api():
-    """获取博客配置"""
-    try:
-        blog_dir = get_blog_dir()
-        return jsonify({
-            'success': True,
-            'data': {
-                'blog_dir': blog_dir,
-                'message': '博客目录配置成功'
-            }
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@blog_bp.route('/images/<path:image_path>')
-def serve_image(image_path):
-    """提供图片文件服务"""
-    try:
-        blog_dir = get_blog_dir()
-        # 构建完整的图片路径
-        full_image_path = os.path.join(blog_dir, image_path)
-        
-        # 安全检查：确保图片路径在博客目录内
-        if not os.path.abspath(full_image_path).startswith(os.path.abspath(blog_dir)):
-            abort(403)
-        
-        # 检查文件是否存在
-        if not os.path.exists(full_image_path) or not os.path.isfile(full_image_path):
-            abort(404)
-        
-        # 检查文件扩展名
-        allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'}
-        file_ext = os.path.splitext(full_image_path)[1].lower()
-        if file_ext not in allowed_extensions:
-            abort(400)
-        
-        # 发送文件
-        return send_file(full_image_path)
-        
-    except Exception as e:
-        current_app.logger.error(f"Error serving image {image_path}: {str(e)}")
-        abort(500)
+        return jsonify({"success": False, "error": str(e)}), 500

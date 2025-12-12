@@ -26,61 +26,25 @@
   <view wx:elif="{{error}}" class="error-container">
     <text class="error-icon">⚠️</text>
     <text class="error-text">{{error}}</text>
-    <button class="retry-btn" bindtap="loadBlogData">重试</button>
+    <button class="retry-btn" bindtap="loadCategories">重试</button>
   </view>
 
-  <!-- 博客内容 -->
-  <view wx:else class="blog-content">
-    <!-- 分类列表 -->
-    <scroll-view class="category-list" scroll-y="true">
-      <view 
-        wx:for="{{categories}}" 
-        wx:key="name"
-        class="category-item {{selectedCategory === item.name ? 'active' : ''}}"
-        bindtap="selectCategory"
-        data-category="{{item.name}}"
-      >
-        <text class="category-name">{{item.name}}</text>
-        <text class="category-count">({{item.count}})</text>
-      </view>
-    </scroll-view>
-
-    <!-- 文章列表 -->
-    <scroll-view class="article-list" scroll-y="true">
-      <view 
-        wx:for="{{articles}}" 
-        wx:key="id"
-        class="article-item"
-        bindtap="goToArticle"
-        data-article="{{item}}"
-      >
-        <view class="article-header">
-          <text class="article-title">{{item.title}}</text>
-          <text class="article-date">{{item.createdAt}}</text>
-        </view>
-        
-        <text class="article-description">{{item.description}}</text>
-        
-        <view class="article-tags">
-          <text 
-            wx:for="{{item.tags}}" 
-            wx:key="*this"
-            class="article-tag"
-          >
-            {{item}}
-          </text>
-        </view>
-        
-        <view class="article-meta">
-          <text class="article-category">{{item.category}}</text>
-        </view>
-      </view>
-
-      <!-- 空状态 -->
-      <view wx:if="{{articles.length === 0}}" class="empty-state">
-        <text class="empty-icon">📝</text>
-        <text class="empty-text">暂无文章</text>
-      </view>
-    </scroll-view>
+  <!-- 树形结构 -->
+  <view wx:else class="tree-container">
+    <tree-node
+      wx:for="{{treeData}}"
+      wx:key="id"
+      wx:for-item="node"
+      node="{{node}}"
+      is-root="{{true}}"
+      bind:nodeclick="onNodeClick"
+      bind:itemclick="onItemClick"
+    />
+    
+    <!-- 空状态 -->
+    <view wx:if="{{treeData.length === 0}}" class="empty-state">
+      <text class="empty-icon">📝</text>
+      <text class="empty-text">暂无分类</text>
+    </view>
   </view>
 </view>

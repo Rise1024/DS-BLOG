@@ -59,14 +59,14 @@ Page({
     this.saveSearchHistory(keyword);
     
     wx.request({
-      url: `${app.globalData.serverUrl}/api/blog/search`,
-      method: 'POST',
-      data: { keyword },
+      url: `${app.globalData.serverUrl}/api/v1/blog/search`,
+      method: 'GET',
+      data: { q: keyword },
       success: (res) => {
         if (res.statusCode === 200 && res.data.success) {
-          const results = res.data.data || [];
+          const data = res.data.data || {};
           this.setData({ 
-            searchResults: results,
+            searchResults: data.articles || [],
             isLoading: false 
           });
         } else {

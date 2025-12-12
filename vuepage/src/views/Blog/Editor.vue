@@ -23,11 +23,13 @@
             
             <div class="meta-field">
               <label class="field-label">分类</label>
-              <select v-model="articleData.category" class="field-select">
-                <option value="">选择分类</option>
-                <option value="技术">技术</option>
-                <option value="生活">生活</option>
-                <option value="随笔">随笔</option>
+              <select v-model="articleData.category_id" class="field-select">
+                <option :value="null">选择分类</option>
+                <template v-for="cat in flatCategories" :key="cat.id">
+                  <option :value="cat.id">
+                    {{ cat.displayName }}
+                  </option>
+                </template>
               </select>
             </div>
           </div>
@@ -186,7 +188,7 @@ const store = useStore();
 const articleData = ref({
   title: '',
   content: '',
-  category: '',
+  category_id: null,
   tags: []
 });
 
@@ -194,6 +196,7 @@ const tagsInput = ref('');
 const activeTab = ref('edit');
 const saving = ref(false);
 const isEdit = ref(false);
+const blogCategories = ref([]);
 
 // 计算属性
 const canPublish = computed(() => {
@@ -238,23 +241,78 @@ const handleContentChange = () => {
   // 可以在这里添加自动保存逻辑
 };
 
+// 扁平化分类列表（用于下拉选择）
+const flatCategories = computed(() => {
+  const flatten = (cats, level = 0) => {
+    const result = [];
+    for (const cat of cats) {
+      result.push({
+        id: cat.id,
+        name: cat.name,
+        displayName: '  '.repeat(level) + cat.name
+      });
+      if (cat.children && cat.children.length > 0) {
+        result.push(...flatten(cat.children, level + 1));
+      }
+    }
+    return result;
+  };
+  return flatten(blogCategories.value);
+});
+
+const loadBlogCategories = async () => {
+  try {
+    const response = await axios.get(`${store.state.serverUrl}/api/v1/admin/blog-categories`, {
+      headers: {
+        'Authorization': store.state.token
+      }
+    });
+    
+    if (response.data?.success) {
+      blogCategories.value = response.data.data || [];
+
+      // 如果是新建，并且路由带入了 category_id，则预填
+      if (!isEdit.value) {
+        const presetCategoryId = route.query.category_id;
+        if (presetCategoryId) {
+          articleData.value.category_id = parseInt(presetCategoryId);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载博客分类失败:', error);
+  }
+};
+
 const saveDraft = async () => {
   saving.value = true;
   try {
-    const response = await axios.post(`${store.state.serverUrl}/api/blog/articles`, articleData.value);
+    const response = await axios.post(`${store.state.serverUrl}/api/v1/admin/articles`, articleData.value, {
+      headers: {
+        'Authorization': store.state.token
+      }
+    });
+    
+    // 获取当前类目ID
+    const categoryId = articleData.value.category_id || route.query.category_id || '';
     
     if (response.data?.success) {
       alert('草稿已保存');
       if (!isEdit.value) {
-        // 新文章保存后跳转到编辑模式
-        router.push(`/blog/editor/${response.data.data.id}`);
+        // 新文章保存后跳转到编辑模式，携带分类参数以便返回时定位
+        router.push({
+          path: `/admin/articles/edit/${response.data.data.id}`,
+          query: categoryId ? { category_id: categoryId } : {}
+        });
       }
     } else {
       alert(response.data?.error || '保存失败');
+      // 失败时保持在当前页面
     }
   } catch (error) {
     console.error('保存草稿失败:', error);
     alert('保存失败，请重试');
+    // 失败时保持在当前页面
   } finally {
     saving.value = false;
   }
@@ -270,20 +328,45 @@ const publishArticle = async () => {
   try {
     let response;
     if (isEdit.value) {
-      response = await axios.put(`${store.state.serverUrl}/api/blog/articles/${articleData.value.id}`, articleData.value);
+      response = await axios.put(`${store.state.serverUrl}/api/v1/admin/articles/${articleData.value.id}`, articleData.value, {
+        headers: {
+          'Authorization': store.state.token
+        }
+      });
     } else {
-      response = await axios.post(`${store.state.serverUrl}/api/blog/articles`, articleData.value);
+      response = await axios.post(`${store.state.serverUrl}/api/v1/admin/articles`, articleData.value, {
+        headers: {
+          'Authorization': store.state.token
+        }
+      });
     }
+    
+    // 获取当前类目ID，优先使用文章的分类ID，其次使用路由中的
+    const categoryId = articleData.value.category_id || route.query.category_id || '';
     
     if (response.data?.success) {
       alert(isEdit.value ? '文章已更新' : '文章已发布');
-      router.push('/blog');
+      router.push({
+        path: '/admin/articles',
+        query: categoryId ? { category_id: categoryId } : {}
+      });
     } else {
       alert(response.data?.error || '发布失败');
+      // 失败时也跳转回当前类目
+      router.push({
+        path: '/admin/articles',
+        query: categoryId ? { category_id: categoryId } : {}
+      });
     }
   } catch (error) {
     console.error('发布文章失败:', error);
     alert('发布失败，请重试');
+    // 失败时也跳转回当前类目
+    const categoryId = articleData.value.category_id || route.query.category_id || '';
+    router.push({
+      path: '/admin/articles',
+      query: categoryId ? { category_id: categoryId } : {}
+    });
   } finally {
     saving.value = false;
   }
@@ -291,10 +374,29 @@ const publishArticle = async () => {
 
 const loadArticle = async (id) => {
   try {
-    const response = await axios.get(`${store.state.serverUrl}/api/blog/articles/${id}`);
+    const response = await axios.get(`${store.state.serverUrl}/api/v1/admin/articles/${id}`, {
+      headers: {
+        'Authorization': store.state.token
+      }
+    });
     
     if (response.data?.success) {
-      articleData.value = response.data.data;
+      const data = response.data.data;
+      articleData.value = {
+        id: data.id,
+        title: data.title || '',
+        content: data.content || '',
+        category_id: data.category_id || null,
+        tags: data.tags || []
+      };
+      
+      // 如果路由中没有 category_id，但文章有 category_id，则更新路由
+      if (!route.query.category_id && data.category_id) {
+        router.replace({
+          path: route.path,
+          query: { ...route.query, category_id: data.category_id }
+        });
+      }
     } else {
       console.error('加载文章失败:', response.data?.error);
     }
@@ -314,13 +416,15 @@ watch(() => route.params.id, (newId) => {
       title: '',
       content: '',
       category: '',
+      subcategory: '',
       tags: []
     };
   }
 }, { immediate: true });
 
 onMounted(() => {
-  // 组件挂载时的逻辑
+  // 加载博客分类列表
+  loadBlogCategories();
 });
 </script>
 
@@ -497,6 +601,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 600px;
+  min-height: 0;
 }
 
 .editor-tabs {
@@ -532,6 +637,7 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .editor-textarea {
@@ -553,6 +659,7 @@ onMounted(() => {
   padding: var(--space-6);
   overflow-y: auto;
   background-color: var(--color-bg-primary);
+  min-height: 0;
 }
 
 .editor-actions {

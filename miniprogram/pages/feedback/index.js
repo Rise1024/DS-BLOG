@@ -39,13 +39,12 @@ Page({
     const app = getApp();
 
     wx.request({
-      url: `${app.globalData.serverUrl}/api/feedback`,
+      url: `${app.globalData.serverUrl}/api/v1/feedback`,
       method: 'POST',
       header: {
-        'Authorization': `${token}`
+        'Authorization': token
       },
       data: {
-        userId: wx.getStorageSync('userId'),
         content: this.data.content,
         contact: this.data.contact
       },

@@ -6,6 +6,7 @@ Page({
     error: '',
     article: null,
     articleContent: null,
+    isContentLoading: false,
     showOutline: false,
     currentHeading: null
   },
@@ -27,7 +28,7 @@ Page({
     console.log('开始加载文章:', articleId);
     
     const serverUrl = app.globalData.serverUrl || 'http://localhost:5000';
-    const url = `${serverUrl}/api/blog/articles/${encodeURIComponent(articleId)}`;
+    const url = `${serverUrl}/api/v1/blog/articles/${articleId}`;
     console.log('请求URL:', url);
 
     wx.request({
@@ -79,6 +80,9 @@ Page({
     try {
       console.log('开始使用towxml解析HTML内容...');
       
+      // 兼容处理：将后端的 <div class="mermaid"> 转换为 <mermaid> 标签
+      htmlContent = this.convertMermaidDivsToTags(htmlContent);
+      
       // 使用towxml解析HTML，使用更保守的配置
       const articleContent = app.towxml(htmlContent, 'html', {
         base: app.globalData.serverUrl,
@@ -94,10 +98,23 @@ Page({
       console.log('towxml解析结果:', articleContent);
       
       if (articleContent && articleContent.children && articleContent.children.length > 0) {
-        this.setData({
-          articleContent
-        });
-        console.log('towxml解析成功，子元素数量:', articleContent.children.length);
+        // 检查数据大小，如果太大则分批设置
+        const dataSize = JSON.stringify(articleContent).length;
+        console.log('数据大小:', dataSize, '字节');
+        
+        // 小程序 setData 限制约为 1MB，我们设置一个安全阈值（800KB）
+        const MAX_DATA_SIZE = 800 * 1024;
+        
+        if (dataSize > MAX_DATA_SIZE) {
+          console.warn('数据过大，使用分批加载策略');
+          this.setArticleContentInBatches(articleContent);
+        } else {
+          // 数据大小正常，直接设置
+          this.setData({
+            articleContent
+          });
+          console.log('towxml解析成功，子元素数量:', articleContent.children.length);
+        }
       } else {
         console.log('towxml解析结果为空，尝试备用方案');
         this.fallbackToSimpleText(htmlContent);
@@ -108,7 +125,97 @@ Page({
       this.fallbackToSimpleText(htmlContent);
     }
   },
+  
+  // 分批设置文章内容
+  setArticleContentInBatches(articleContent) {
+    const _ts = this;
+    const children = articleContent.children || [];
+    const batchSize = 30; // 每批处理 30 个子元素，减少单次数据量
+    
+    // 先设置基础结构，显示加载状态
+    _ts.setData({
+      articleContent: {
+        theme: articleContent.theme || 'light',
+        _e: articleContent._e || {},
+        children: []
+      },
+      isContentLoading: true
+    });
+    
+    let currentIndex = 0;
+    
+    // 分批添加子元素
+    function addNextBatch() {
+      if (currentIndex >= children.length) {
+        // 所有内容加载完成
+        _ts.setData({
+          isContentLoading: false
+        });
+        console.log('所有内容加载完成，共', children.length, '个子元素');
+        return;
+      }
+      
+      const end = Math.min(currentIndex + batchSize, children.length);
+      const batch = children.slice(currentIndex, end);
+      const currentChildren = _ts.data.articleContent.children || [];
+      
+      // 追加新的一批到现有数组
+      _ts.setData({
+        'articleContent.children': [...currentChildren, ...batch]
+      });
+      
+      currentIndex = end;
+      console.log(`内容加载进度: ${currentIndex}/${children.length}`);
+      
+      // 使用 setTimeout 延迟下一批，避免阻塞 UI
+      setTimeout(() => {
+        addNextBatch();
+      }, 50);
+    }
+    
+    // 开始加载
+    addNextBatch();
+  },
 
+  // 将后端的 <div class="mermaid"> 转换为 <mermaid> 标签
+  convertMermaidDivsToTags(htmlContent) {
+    // 匹配各种格式的 mermaid div：
+    // 1. <div class="mermaid" id="mermaid-xxx">\n{code}\n</div>
+    // 2. <div class="mermaid">\n{code}\n</div>
+    // 3. <div class='mermaid'>\n{code}\n</div>
+    // 使用非贪婪匹配，确保能正确提取代码内容
+    const mermaidPattern = /<div\s+[^>]*class\s*=\s*["']mermaid["'][^>]*>([\s\S]*?)<\/div>/gi;
+    
+    let convertedCount = 0;
+    
+    const convertedHtml = htmlContent.replace(mermaidPattern, (match, code) => {
+      // 提取 mermaid 代码（去除首尾空白）
+      const mermaidCode = code.trim();
+      
+      if (!mermaidCode) {
+        console.warn('Mermaid 代码为空，跳过转换');
+        return match; // 如果代码为空，保持原样
+      }
+      
+      // 对代码进行 URL 编码（与 yuml.js 插件中的处理方式一致）
+      const encodedCode = encodeURIComponent(mermaidCode);
+      
+      // 转换为 <mermaid> 标签
+      const mermaidTag = `<mermaid value="${encodedCode}"></mermaid>`;
+      
+      convertedCount++;
+      console.log(`转换 Mermaid div #${convertedCount}，代码长度:`, mermaidCode.length);
+      
+      return mermaidTag;
+    });
+    
+    if (convertedCount > 0) {
+      console.log(`共转换了 ${convertedCount} 个 Mermaid div 为标签`);
+    }
+    
+    return convertedHtml;
+  },
+  
   // 备用方案：简单的文本提取
   fallbackToSimpleText(htmlContent) {
     try {
@@ -138,6 +245,14 @@ Page({
     } catch (error) {
       console.error('备用方案也失败了:', error);
     }
+  },
+
+  // 跳转到题目详情
+  goToQuestion(e) {
+    const questionId = e.currentTarget.dataset.id;
+    wx.navigateTo({
+      url: `/pages/question-bank/detail/index?id=${questionId}`
+    });
   },
 
   // 返回列表

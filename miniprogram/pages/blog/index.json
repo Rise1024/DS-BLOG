@@ -1,5 +1,8 @@
 {
   "navigationBarTitleText": "博客",
   "enablePullDownRefresh": true,
-  "backgroundTextStyle": "dark"
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "tree-node": "/components/tree-node/tree-node"
+  }
 }

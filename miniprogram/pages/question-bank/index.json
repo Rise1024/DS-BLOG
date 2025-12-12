@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "题库",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "tree-node": "/components/tree-node/tree-node"
+  }
+}
+
+

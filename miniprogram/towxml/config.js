@@ -255,7 +255,8 @@ module.exports = {
     components:[
         'table',                    // 表格支持
         'todogroup',                // todo支持
-        'img'                       // 图片解析组件
+        'img',                      // 图片解析组件
+        'mermaid'                   // Mermaid 图表支持
     ],
 
     // 保留原本的元素属性（建议不要变动）
